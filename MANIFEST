@@ -1,0 +1,14 @@
+ChangeLog
+MANIFEST
+Makefile.PL
+examples/daemon.pl
+lib/IO/Mux.pm
+lib/IO/Mux/Bundle.pm
+lib/IO/Mux/Connection.pm
+lib/IO/Mux/Connection/TCP.pm
+lib/IO/Mux/Handler.pm
+lib/IO/Mux/Poll.pm
+lib/IO/Mux/Select.pm
+lib/IO/Mux/Socket.pm
+lib/IO/Mux/Socket/TCP.pm
+t/01use.t
