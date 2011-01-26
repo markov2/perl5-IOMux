@@ -1,6 +1,10 @@
 
 === version history for IO::Mux
 
-version 0.10:
-	- initial version
+version 0.11: Wed Jan 26 16:29:12 CET 2011
+	- bug-fixes and many extensions
+	- first public release, to see what cpantesters find.
+
+version 0.10: Fri Jan  7 09:47:16 CET 2011
+	- initial version (not released)
 

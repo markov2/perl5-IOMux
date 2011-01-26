@@ -122,7 +122,7 @@ sub heartbeat($$$)
 # Usually in a seperate file.
 
 package IO::Mux::Echo;
-use base 'IO::Mux::Connection::TCP';
+use base 'IO::Mux::Net::TCP';
 
 use warnings;
 use strict;

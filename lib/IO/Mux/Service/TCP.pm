@@ -1,16 +1,16 @@
 use warnings;
 use strict;
 
-package IO::Mux::Socket::TCP;
-use base 'IO::Mux::Socket';
+package IO::Mux::Service::TCP;
+use base 'IO::Mux::Handler::Service';
 
 use Log::Report 'io-mux';
-use IO::Mux::Connection::TCP ();
+use IO::Mux::Net::TCP ();
 
 use Socket 'SOCK_STREAM';
 
 =chapter NAME
-IO::Mux::Socket::TCP - TCP based socket
+IO::Mux::Service::TCP - TCP (socket) based service
 
 =chapter SYNOPSIS
 
@@ -27,64 +27,64 @@ well.
 
 =requires conn_type CLASS|CODE
 The CLASS (package name) of client to be created for each new contact.
-This CLASS must extend  M<IO::Mux::Connection::TCP>. You may also
-provide a CODE reference which will be called with the socket leading
-to the client.
+This CLASS must extend  M<IO::Mux::Net::TCP>. You may also provide a
+CODE reference which will be called with the socket leading to the client.
 
+=option  conn_opts ARRAY
+=default conn_opts []
+Pass some extra options when objects of C<conn_type> are created.
+
+=default name 'listen tcp $host:$port'
 =cut
 
 sub init($)
 {   my ($self, $args) = @_;
-    $self->SUPER::init($args);
 
-    my $proto = $self->socket->socktype;
+    my $socket = $args->{fh}
+      = (delete $args->{socket}) || $self->extractSocket($args);
+
+    my $proto = $socket->socktype;
     $proto eq SOCK_STREAM
          or error __x"{pkg} needs STREAM protocol socket", pkg => ref $self;
+
+    $args->{name} ||= "listen tcp ".$socket->sockhost.':'.$socket->sockport;
+
+    $self->SUPER::init($args);
 
     my $ct = $self->{IMST_conn_type} = $args->{conn_type}
         or error __x"a conn_type for incoming request is need by {name}"
           , name => $self->name;
 
+    $self->{IMST_conn_opts} = $args->{conn_opts} || [];
     $self;
 }
 
 #------------------------
-=section Attributes
+=section Accessors
 =method clientType
+=method socket
 =cut
 
 sub clientType() {shift->{IMST_conn_type}}
+sub socket()     {shift->fh}
 
 #-------------------------
 =section Multiplexer
 =cut
 
-sub mux_init($)
-{   my ($self, $mux) = @_;
-    $self->SUPER::mux_init($mux);
-    $self->fdset(1, 1, 0, 0);  # 'read' new connections
-}
-
-sub mux_remove()
-{   my $self = shift;
-    $self->SUPER::mux_remove;
-    $self->fdset(0, 1, 0, 0);
-}
-
-=method mux_read_flagged
-The read flag is set on the socket, which means that a new connection
-attempt is made.
-=cut
+# The read flag is set on the socket, which means that a new connection
+# attempt is made.
 
 sub mux_read_flagged()
 {   my $self = shift;
 
     if(my $client = $self->socket->accept)
     {   my $ct = $self->{IMST_conn_type};
-        my $handler = ref $ct eq 'CODE' ? $ct->($client)
-          : $ct->new(socket => $client);
+        my $handler = ref $ct eq 'CODE'
+          ? $ct->(socket => $client, @{$self->{IMST_conn_opts}})
+          : $ct->new(socket => $client, @{$self->{IMST_conn_opts}});
         $self->mux->add($handler);
-        $self->mux_connection($self, $client);
+        $self->mux_connection($client);
     }
     else
     {   alert "accept for {name} failed", name => $self->name;

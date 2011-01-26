@@ -9,6 +9,7 @@ use Log::Report 'io-mux';
 use List::Util  'min';
 use POSIX       'errno_h';
 use IO::Poll;
+use IO::Handle;
 
 $SIG{PIPE} = 'IGNORE';   # pipes are handled in select
 
@@ -19,10 +20,17 @@ IO::Mux::Poll - simplify use of poll()
   use IO::Mux::Poll;
 
   my $mux    = IO::Mux::Poll->new;
-  my $server = IO::Mux::Socket::UDP->new(...);
+  my $server = IO::Mux::Service::TCP->new(...);
   $mux->add($server);
+  $mux->loop;
 
 =chapter DESCRIPTION
+Multiplexer based on the C<poll()> system call, defined by POSIX.
+
+The C<poll> has less administration overhead than the C<select> call
+(implemented via M<IO::Mux::Select>) because it avoids the need to play
+with bit-vectors to see which file handles got activated. However,
+C<poll> is not supported on all platforms.
 
 =chapter METHODS
 
@@ -38,7 +46,7 @@ sub init($)
 }
 
 #-------------
-=section Attributes
+=section Accessors
 =method poller
 The internal M<IO::Poll> object.
 =cut
@@ -46,8 +54,6 @@ The internal M<IO::Poll> object.
 sub poller {$poll}
 
 #-------------
-=section Handle administration
-=cut
 
 sub fdset($$$$$)
 {   my ($self, $fileno, $state, $r, $w, $e) = @_;
@@ -67,29 +73,26 @@ sub fdset($$$$$)
     $poll->mask($fh, $mask);
 }
 
-#------------------
-=section Runtime
-=cut
-
 sub one_go($$)
 {   my ($self, $wait, $heartbeat) = @_;
 
-    my $numready = $poll->poll;
+    my $numready = $poll->poll($wait);
 
-    if($heartbeat)
-    {   $heartbeat->($self, $numready, undef)
-    }
+    $heartbeat->($self, $numready, undef)
+        if $heartbeat;
 
     if($numready < 0)
     {   return if $! == EINTR || $! == EAGAIN;
         alert "Leaving loop with $!";
         return 0;
     }
-    elsif($numready)
-    {   $self->_ready(mux_read_flagged  => POLLIN|POLLHUP);
-        $self->_ready(mux_write_flagged => POLLOUT);
-        $self->_ready(mux_error_flagged => POLLERR);
-    }
+
+    $numready
+        or return 1;
+ 
+    $self->_ready(mux_read_flagged   => POLLIN|POLLHUP);
+    $self->_ready(mux_write_flagged  => POLLOUT);
+    $self->_ready(mux_except_flagged => POLLERR);
 
     1;  # success
 }
@@ -99,8 +102,17 @@ sub _ready($$)
 {   my ($self, $call, $mask) = @_;
     my $handlers = $self->_handlers;
     foreach my $fh ($poll->handles($mask))
-    {   my $conn = $handlers->{$fh->fileno};
-        $conn->$call;
+    {   my $fileno = $fh->fileno or next;   # close filehandle
+        if(my $conn = $handlers->{$fileno})
+        {   # filehandle flagged
+            $conn->$call($fileno);
+        }
+        else
+        {   # Handler administration error, but when write and error it may
+            # be caused by read errors.
+            alert "connection for ".$fh->fileno." not registered in $call"
+                if $call eq 'mux_read_flagged';
+        }
     }
 }
 

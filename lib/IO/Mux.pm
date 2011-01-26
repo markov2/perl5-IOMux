@@ -14,58 +14,43 @@ use constant
   };
 
 =chapter NAME
-IO::Mux - simplify use of select()
+IO::Mux - simplify use of file-event loops
 
 =chapter SYNOPSIS
   use IO::Mux;
+  use IO::Mux::Socket::TCP;
 
   my $mux    = IO::Mux->new;
-  my $server = IO::Mux::Socket::UDP->new(...);
+  my $server = IO::Mux::Socket::TCP->new(...);
   $mux->add($server);
 
 =chapter DESCRIPTION
 
-C<IO::Mux> is designed to take the effort out of managing multiple socket
-connections within one process. It is essentially a really fancy front
-end to various kinds of event mechanisms, like C<select> and C<poll>. In
-addition to maintaining the event loop, all input and output of the data
-stream gets buffered for you. You do not need to play with filehandles
-yourself.
+C<IO::Mux> is designed to take the effort out of managing multiple socket,
+file or pipe connections within one process. It is essentially a really
+fancy front end to various kinds of event mechanisms, like C<select>
+and C<poll>. In addition to maintaining the event loop, all input and
+output of the data stream gets buffered for you which tends to be quite
+difficult in event driven programs.
 
 On many platforms, the capabilities of various event mechanisms do differ
 a lot. Be careful which mechanism you pick. Test it! Read the man-pages
 which contain information about limitations and please contribute
 information you discover.
 
-See L</DETAILS> far below for a long description about differences with
-M<IO::Multiplex> and M<IO::Async>, plus interesting implementation
-details.
-
-The following event managers are available on the moment:
-
+See L</DETAILS> far below for a long description about
 =over 4
-=item * M<IO::Mux::Select>
-uses a C<select> call (see "man 2 select" on UNIX/Linux). The number
-of file handles it can monitor is limited (but quite large) and the
-overhead increases with the number of handles. On Windows only usable
-with sockets, no pipes nor files.
-
-=item * M<IO::Mux::Poll>
-uses a C<poll> call (see "man 2 poll" on UNIX/Linux). Not available
-on Windows, afaik. More efficient than C<select> when the number of
-file handles grows, and many more filehandles can be monitored at
-once.
+=item . event managers C<select()> and C<poll()>
+=item . managed file handles
+=item . differences with M<IO::Multiplex> and M<IO::Async>, plus
+=item . interesting implementation details.
 =back
-
-Other possible mechanisms include C<epoll>, C<ppoll>, C<pselect>,
-C<kqueue>, and C<Glib>, may get added later. Connections to other event
-frameworks as C<POE>, C<IO::Async>, and C<AnyEvent> may get added as well.
 
 =chapter METHODS
 
 =section Constructors
 
-=ci_method new OPTIONS
+=c_method new OPTIONS
 There can only be one of these objects in your program. After
 instantiating this, you will M<add()> file-handles and sockets.  Finally,
 M<loop()> is called to go into C<select>-driven connection handling.
@@ -84,30 +69,15 @@ sub init($)
 
 #-------------
 =section Accessors
-=method handlers
-Returns a list of all registered handlers (also the sockets).
-=example
-  foreach my $conn ($mux->handlers) { ... }
 =cut
-
-sub handlers()  {values %{shift->{IM_handlers}}}
-sub _handlers() {shift->{IM_handlers}}
-
-=method handler FILENO
-Returns the handler which maintains FILENO.
-=example
-  $mux->handler(1);   # probably STDOUT
-=cut
-
-sub handler($) {$_[0]->{IM_handlers}{$_[1]}}
 
 #-------------
-=section Handle administration
+=section User interface
 
 =method add HANDLER|BUNDLE
-Add an HANDLER or BUNDLE to the multiplexer.
-Handlers extend M<IO::Mux::Handle>.
-Bundles are related sets of handlers and extend M<IO::Mux::Bundle>.
+Add an HANDLER or BUNDLE to the multiplexer. Handlers extend
+M<IO::Mux::Handler>. Bundles are related sets of handlers and
+extend M<IO::Mux::Bundle>.
 =cut
 
 # add() is the main user interface to mux, because from then the
@@ -117,91 +87,51 @@ Bundles are related sets of handlers and extend M<IO::Mux::Bundle>.
 sub add($)
 {   my ($self, $handler) = @_;
 
-    if($handler->isa('IO::Mux::Bundle'))
-    {   $self->add($_) for $handler->connections;
-        return;
-    }
-
-    $handler->isa('IO::Mux::Handler')
-        or error __x"attempt to add non handler {pkg}", pkg => ref $handler;
-
-    my $fileno = $handler->fileno;
-    $self->{IM_handlers}{$fileno} = $handler;
-
-    trace "mux add fileno=$fileno ".$handler->name;
-    if(my $timeout = $handler->timeout)
-    {   $self->{IM_timeouts}{$fileno} = $timeout;
-    }
+    UNIVERSAL::isa($handler, 'IO::Mux::Handler')
+        or error __x"attempt to add non handler {pkg}"
+          , pkg => (ref $handler || $handler);
 
     $handler->mux_init($self);
     $handler;
 }
 
-=method remove FILENO
-Remove a connection from the multiplexer. Better to use the
-connection close method.
-
-=example
-  $mux->remove($conn->fileno);
-
-  # better this way:
-  $conn->close;
-=cut
-
-sub remove($)
-{   my ($self, $fileno) = @_;
-
-    my $obj = delete $self->{IM_handlers}{$fileno}
-        or return $self;
-
-    $self->fdset($fileno, 0, 1, 1, 1);
-    $obj->mux_remove;
-
-    if(my $timeout = delete $self->{IM_timeouts}{$fileno})
-    {   delete $self->{IM_next_timeout}
-            if $self->{IM_next_timeout}==$timeout;
-    }
-
-    $self;
-}
-
-=method fdset FILENO, STATE, READ, WRITE, ERROR
-Change the select bit STATE for the FILENO. Change the READ, WRITE
-and/or ERROR state.
-=example
-  # clear read and error, keep write
-  $mux->fdset($conn->fileno, 0, 1, 0, 1);
-
-  # better this way:
-  $conn->fdset(0, 1, 0, 1);
-=cut
-
-sub fdset($$$$$) {panic}
-
 =method open MODE, PARAMS
+This C<open()> provides a simplified interface to M<IO::Mux::Open>, which on
+its turn is a simplification on using all kinds of handlers. See the manual
+of M<IO::Mux::Open> for an extended description of the use.
 
 =example
+  use IO::Mux::Open '-|';  # loads handler code
+  sub print_line($$)
+  {   my ($handler, $line) = @_;
+      print "line = $line";
+  }
+
   # the short form
   my $who = $mux->open('-|', 'who');
-  $who->readline( sub {print ${$_[0]}} }
+  $who->readline(\&print_line);
 
   # equivalent to the longer
   my $who = IO::Mux::Open->new('-|', 'who');
   $mux->add($who);
-  print <$who>;
+  $who->readline(\&print_line);
+
+  # or even longer
+  use IO::Mux::Pipe::Read;
+  my $who = IO::Mux::Pipe::Read->new(command => 'who');
+  $mux->add($who);
+  $who->readline(\&print_line);
+  
 =cut
 
 sub open(@)
 {   my $self = shift;
-    my $open = IO::Mux::Open->can('new')
-       or error __x"IO::Mux::Open not loaded";
-    my $conn = $open->(@_);
+    IO::Mux::Open->can('new')
+        or error __x"IO::Mux::Open not loaded";
+    my $conn = IO::Mux::Open->new(@_);
     $self->add($conn) if $conn;
     $conn;
 }
-
-#------------------
-=section Runtime
 
 =method loop [HEARTBEAT]
 Enter the main loop and start processing IO events. The loop will terminate
@@ -270,9 +200,89 @@ side-effect of a single handler.
 
 sub endLoop($) { $_[0]->{IM_endloop} = $_[1] }
 
+#-------------
+=section For internal use
+
+The following methods are provided, but end-users should avoid calling
+these methods directly: call them via the M<IO::Mux::Handler>.
+
+=method handlers
+Returns a list of all registered handlers (also the sockets).
+=example
+  foreach my $conn ($mux->handlers) { ... }
+=cut
+
+sub handlers()  {values %{shift->{IM_handlers}}}
+sub _handlers() {shift->{IM_handlers}}
+
+=method handler FILENO, [HANDLER]
+Returns (or sets) the handler which maintains FILENO.
+=example
+  $mux->handler(1);   # probably STDOUT
+=cut
+
+sub handler($;$)
+{   my $hs     = shift->{IM_handlers};
+    my $fileno = shift;
+    @_ or return $hs->{$fileno};
+    (defined $_[0]) ? ($hs->{$fileno} = shift) : (delete $hs->{$fileno});
+}
+
+=method remove FILENO
+Remove a connection from the multiplexer. Better to use the
+connection close method.
+
+=example
+  $mux->remove($conn->fileno);
+
+  # better this way:
+  $conn->close;
+=cut
+
+sub remove($)
+{   my ($self, $fileno) = @_;
+
+    my $obj = delete $self->{IM_handlers}{$fileno}
+        or return $self;
+
+    $self->fdset($fileno, 0, 1, 1, 1);
+    $obj->mux_remove;
+
+    if(my $timeout = delete $self->{IM_timeouts}{$fileno})
+    {   delete $self->{IM_next_timeout}
+            if $self->{IM_next_timeout}==$timeout;
+    }
+
+    $self;
+}
+
+=method fdset FILENO, STATE, READ, WRITE, EXCEPT
+Change the select bit STATE for the FILENO. Change the READ, WRITE
+and/or EXCEPTion state.
+=example
+  # clear read and except, keep write
+  $mux->fdset($conn->fileno, 0, 1, 0, 1);
+
+  # better this way:
+  $conn->fdset(0, 1, 0, 1);
+=cut
+
+sub fdset($$$$$) {panic}
+
 =method changeTimeout FILENO, OLDTIMEOUT, NEWTIMEOUT
 One of the connections wants to change its timeouts. A value of
-zero or undef means I<not active>. 
+zero or undef means I<not active>.
+
+The correct OLDTIMEOUT must be provided to make it fast to detect whether
+this was the first timeout to expire. Checking the first timeout takes
+C<O(n)> time, so we wish to avoid that.
+
+=example
+  # set timeout
+  $mux->changeTimeout($conn->fileno, undef, 10);
+
+  # better this way
+  $conn->timeout(10);
 =cut
 
 sub changeTimeout($$$)
@@ -320,7 +330,73 @@ sub _checkTimeouts($)
 __END__
 =chapter DETAILS
 
+=section Installation
+
+Many components of IO-driven programming are quite platform dependent.
+Therefore, C<IO::Mux> does not enforce the installation of these
+dependencies during installation. However, when you choose to use some of
+the components, you will discover you need to install additional modules.
+For instance, when you use M<IO::Mux::Poll> you will need M<IO::Poll>.
+
+Many perl modules (like LWP) use autoloading to get additional code in
+when it gets used. This is a nice help for users who do not need to load
+those modules explicitly. It is also a speed-up for the boot-time of
+scripts. However, C<IO::Mux> is usually run in a daemon (see F<examples/>
+directory) which should load all code before child processes are started.
+Besides, initialization time does not really matter for daemons.
+
+=section Event managers
+
+The following event managers are available on the moment:
+
+=over 4
+=item * M<IO::Mux::Select>
+uses a C<select> call (see "man 2 select" on UNIX/Linux). The number
+of file handles it can monitor is limited (but quite large) and the
+overhead increases with the number of handles. On Windows only usable
+with sockets, no pipes nor files.
+
+=item * M<IO::Mux::Poll>
+uses a C<poll> call (see "man 2 poll" on UNIX/Linux). Not available
+on Windows, afaik. More efficient than C<select> when the number of
+file handles grows, and many more filehandles can be monitored at
+once.
+=back
+
+Other possible mechanisms include C<epoll>, C<ppoll>, C<pselect>,
+C<kqueue>, and C<Glib>, may get added later. Connections to other event
+frameworks as C<POE>, C<IO::Async>, and C<AnyEvent> may get added as well.
+
+=section File handles
+
+The event managers looks to one or more file handles for changes: either
+the write buffer gets empty (the program may send more), requested data
+has arrived (ready to be read) or (unexpected) error text comes in.
+
+The following handles are supported, although maybe not on your
+platform.
+
+=over 4
+=item * M<IO::Mux::Service::TCP>
+A server for TCP based application, like a web-server. On each
+incoming connection, a M<IO::Mux::Net::TCP> will be started to
+handle it.
+
+=item * M<IO::Mux::Net::TCP>
+Handle a single TCP connection.
+
+=item * M<IO::Mux::File::Read> and M<IO::Mux::File::Write>
+Read and write a file asynchronously.
+
+=item * M<IO::Mux::Pipe::Read> and M<IO::Mux::Pipe::Write>
+Read the output from an command, respectively send bytes to
+and external command.
+
+=back
+
 =section Alternatives
+
+On CPAN, you can find various alternatives for this module.
 
 =subsection IO::Multiplex
 
@@ -366,9 +442,6 @@ of handlers.
 In Mux, you have a few more locations where you can hook the process,
 a few more callbacks.
 
-=item . Error channel
-Mux supports the error handle (when available) as well.
-
 =item . Pipes and files
 Mux added support for file reading and writing, pipes and proxies.
 
@@ -376,10 +449,12 @@ Mux added support for file reading and writing, pipes and proxies.
 One should use timeouts on all handlers, because no connection can be
 trusted even files (which may come from stalled NFS partitions).
 
+=back
+
 =subsection IO::Async / Net::Async
 
 Paul Evans has developed a large number of modules which is more
-feature complete than <IO::Mux>. It supports far more event loops,
+feature complete than C<IO::Mux>. It supports far more event loops,
 is better tested, and has many higher level applications ready to
 be used.
 
@@ -389,5 +464,4 @@ module for object oriented perl module documentation, and M<Log::Report>
 for error handling and translations. Besides, the M<IO::Multiplex>
 interface is much easier to use than the IO::Async concept.
 
-=back
 =cut

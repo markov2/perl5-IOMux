@@ -3,7 +3,7 @@ use ExtUtils::MakeMaker;
 
 use 5.008;
 
-my $version = '0.10';
+my $version = '0.11';
 
 WriteMakefile
  ( NAME	 	=> 'IO::Mux'
@@ -31,6 +31,6 @@ FIRST_YEAR      = 2011
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/
 
-EXTENDS		= ../AnyDaemon
+EXTENDS		= ../AnyDaemon:../MuxHTTP
 PODTAIL		= ../daemon-shared-podtail
 __POSTAMBLE

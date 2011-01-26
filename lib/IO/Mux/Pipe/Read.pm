@@ -1,0 +1,167 @@
+use warnings;
+use strict;
+
+package IO::Mux::Pipe::Read;
+use base 'IO::Mux::Handler::Read';
+
+use Log::Report    'io-mux';
+use Fcntl;
+use POSIX          qw/:errno_h :sys_wait_h/;
+use File::Basename 'basename';
+
+=chapter NAME
+IO::Mux::Pipe::Read - read from an external command
+
+=chapter SYNOPSIS
+  my $mux = IO::Mux::Select->new;  # or ::Poll
+
+  use IO::Mux::Open '-|';
+  my $pipe = $mux->open('-|', $command, @cmd_options);
+
+  use IO::Mux::Pipe::Read;
+  my $pipe = IO::Mux::Pipe::Read->new
+    ( command => [$command, @cmd_options] );
+  $mux->add($pipe);
+
+  $pipe->getline(sub {print "$_[0]\n"});
+
+=chapter DESCRIPTION
+In an event driven program, reading is harder to use than writing: the
+read will very probably be stalled until data has arrived, so you will
+need a callback to handle the resulting data.
+
+=chapter METHODS
+
+=section Constructors
+
+=c_method new OPTIONS
+
+=requires command COMMAND|ARRAY
+The external command to be executed. Either the COMMAND needs to
+parameters, or you need to pass an ARRAY of the command name and
+all its parameters.
+
+=default read_size 4096
+=default name  '$cmd|'
+=cut
+
+sub init($)
+{   my ($self, $args) = @_;
+    my $command = $args->{command}
+        or error __x"no command to run specified in {pkg}", pkg => __PACKAGE__;
+
+    my ($cmd, @cmdopts) = ref $command eq 'ARRAY' ? @$command : $command;
+    my $name = $args->{name} = (basename $cmd)."|";
+
+    my ($rh, $wh);
+    pipe $rh, $wh
+        or fault __x"cannot create pipe for {cmd}", cmd => $name;
+
+    my $pid = fork;
+    defined $pid
+        or fault __x"failed to fork for pipe {cmd}", cmd => $name;
+
+    if($pid==0)
+    {   # client
+        close $rh;
+        open STDIN,  '<', File::Spec->devnull;
+        open STDOUT, '>&', $wh
+            or fault __x"failed to redirect STDOUT for pipe {cmd}", cmd=>$name;
+        open STDERR, '>', File::Spec->devnull;
+
+        exec $cmd, @cmdopts
+            or fault __x"failed to exec for pipe {cmd}", cmd => $name;
+    }
+
+    # parent
+
+    $self->{IMPR_pid}    = $pid;
+    $args->{read_size} ||= 4096;  # Unix typical BUFSIZ
+
+    close $wh;
+    fcntl $rh, F_SETFL, O_NONBLOCK;
+    $args->{fh} = $rh;
+
+    $self->SUPER::init($args);
+    $self;
+}
+
+=c_method bare OPTIONS
+Creates a pipe, but does not start a process (yet). Used by
+M<IO::Mux::IPC>, which needs three pipes for one process. Returned
+is not only a new pipe object, but also a write handle to be
+connected to the other side.
+
+All OPTIONS which are available to M<IO::Mux::Handler::Read::new()>
+can be used here as well.
+
+=option  read_size INTEGER
+=default read_size 4096
+
+=example
+  my ($out, $out_rh)
+      = IO::Mux::Pipe::Read->bare(name => 'stdout');
+=cut
+
+sub bare($%)
+{   my ($class, %args) = @_;
+    my $self = bless {}, $class;
+
+    my ($rh, $wh);
+    pipe $rh, $wh
+        or fault __x"cannot create bare pipe reader";
+
+    $args{read_size} ||= 4096;  # Unix typical BUFSIZ
+
+    fcntl $rh, F_SETFL, O_NONBLOCK;
+    $args{fh} = $rh;
+
+    $self->SUPER::init(\%args);
+    ($self, $wh);
+}
+
+=c_method open MODE, (CMD, CMDOPTS)|(CMDARRAY, OPTIONS)
+Open the pipe to read. MODE is always C<< -| >>.  When you need to
+pass additional OPTIONS to the implied M<new()>, then you must use
+an ARRAY for command name and its optional parameters.
+=examples
+  my $mux = IO::Mux::Poll->new;
+  $mux->open('-|', 'who', '-H');  # no opts
+  $mux->open('-|', ['who', '-H'], %opts);
+  $mux->open('-|', 'who');        # no opts
+  $mux->open('-|', ['who'], %opts);
+
+=cut
+
+sub open($$@)
+{   my ($class, $mode, $cmd) = (shift, shift, shift);
+      ref $cmd eq 'ARRAY'
+    ? $class->new(command => $cmd, mode => $mode, @_)
+    : $class->new(command => [$cmd, @_] , mode => $mode);
+}
+
+#-------------------
+=section Accessors
+
+=method mode
+The bits of the open mode.
+=method childPid
+The process id of the child on the other side of the pipe.
+=cut
+
+sub mode()     {shift->{IMPR_mode}}
+sub childPid() {shift->{IMPR_pid}}
+
+#-------------------
+
+sub close($)
+{   my ($self, $cb) = @_;
+    my $pid = $self->{IMPR_pid}
+        or return $self->SUPER::close($cb);
+
+    waitpid $pid, WNOHANG;
+    local $?;
+    $self->SUPER::close($cb);
+}
+
+1;
