@@ -1,10 +1,10 @@
 use warnings;
 use strict;
 
-package IO::Mux::Poll;
-use base 'IO::Mux';
+package IOMux::Poll;
+use base 'IOMux';
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 
 use List::Util  'min';
 use POSIX       'errno_h';
@@ -14,13 +14,13 @@ use IO::Handle;
 $SIG{PIPE} = 'IGNORE';   # pipes are handled in select
 
 =chapter NAME
-IO::Mux::Poll - simplify use of poll()
+IOMux::Poll - simplify use of poll()
 
 =chapter SYNOPSIS
-  use IO::Mux::Poll;
+  use IOMux::Poll;
 
-  my $mux    = IO::Mux::Poll->new;
-  my $server = IO::Mux::Service::TCP->new(...);
+  my $mux    = IOMux::Poll->new;
+  my $server = IOMux::Service::TCP->new(...);
   $mux->add($server);
   $mux->loop;
 
@@ -28,7 +28,7 @@ IO::Mux::Poll - simplify use of poll()
 Multiplexer based on the C<poll()> system call, defined by POSIX.
 
 The C<poll> has less administration overhead than the C<select> call
-(implemented via M<IO::Mux::Select>) because it avoids the need to play
+(implemented via M<IOMux::Select>) because it avoids the need to play
 with bit-vectors to see which file handles got activated. However,
 C<poll> is not supported on all platforms.
 

@@ -1,15 +1,15 @@
 use warnings;
 use strict;
 
-package IO::Mux::Net::TCP;
-use base 'IO::Mux::Handler::Read', 'IO::Mux::Handler::Write';
+package IOMux::Net::TCP;
+use base 'IOMux::Handler::Read', 'IOMux::Handler::Write';
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 use Socket      'SOCK_STREAM';
 use IO::Socket::INET;
 
 =chapter NAME
-IO::Mux::Net::TCP - handle a TCP connection
+IOMux::Net::TCP - handle a TCP connection
 
 =chapter SYNOPSIS
 
@@ -37,13 +37,13 @@ Provide a socket, either as object or the parameters to instantiate it.
     ( PeerAddr => 'www.example.com:80'
     , Reuse    => 1
     );
-  my $client = IO::Mux::Net::TCP->new
+  my $client = IOMux::Net::TCP->new
     ( socket   => $socket
     );
   $mux->add($client);
 
   # short form
-  my $client = IO::Mux::Net::TCP->new
+  my $client = IOMux::Net::TCP->new
     ( PeerAddr => 'www.example.com:80'
     , Reuse    => 1
     );
@@ -63,8 +63,8 @@ sub init($)
 
     $args->{name} ||= "tcp ".$socket->peerhost.':'.$socket->peerport;
 
-    $self->IO::Mux::Handler::Read::init($args);
-    $self->IO::Mux::Handler::Write::init($args);
+    $self->IOMux::Handler::Read::init($args);
+    $self->IOMux::Handler::Write::init($args);
 
     $self;
 }

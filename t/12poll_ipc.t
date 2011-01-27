@@ -14,10 +14,10 @@ BEGIN { eval "require IO::Poll";
         plan tests => 11;
       }
 
-use_ok('IO::Mux::Poll');
+use_ok('IOMux::Poll');
 
-my $mux = IO::Mux::Poll->new;
-isa_ok($mux, 'IO::Mux::Poll');
+my $mux = IOMux::Poll->new;
+isa_ok($mux, 'IOMux::Poll');
 
 my $tempfn = mktemp 'iomux-test.XXXXX';
 ok(1, "tempfile = $tempfn");
@@ -34,10 +34,10 @@ exit 0;
 my $ipc;
 
 sub check_write()
-{   use_ok('IO::Mux::IPC');
+{   use_ok('IOMux::IPC');
 
-    $ipc = IO::Mux::IPC->new(command => ['tee', $tempfn]);
-    isa_ok($ipc, 'IO::Mux::IPC');
+    $ipc = IOMux::IPC->new(command => ['tee', $tempfn]);
+    isa_ok($ipc, 'IOMux::IPC');
     $mux->add($ipc);
 
     $ipc->write(\"tic\ntac\n");
@@ -59,7 +59,7 @@ sub written()
     }
     is($teed, "tic\ntac\ntoe\n", 'remote received all data');
 
-    isa_ok($stdin, 'IO::Mux::Pipe::Write');
+    isa_ok($stdin, 'IOMux::Pipe::Write');
     is($stdin, $ipc->stdin);
 
 #print $ipc->show;
@@ -68,7 +68,7 @@ sub written()
 
 sub slurped($)
 {   my ($stdout, $data) = @_;
-    isa_ok($stdout, 'IO::Mux::Pipe::Read');
+    isa_ok($stdout, 'IOMux::Pipe::Read');
     is($$data, "tic\ntac\ntoe\n");
     $ipc->close;
 

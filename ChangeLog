@@ -1,5 +1,9 @@
 
-=== version history for IO::Mux
+=== version history for IOMux
+
+version 0.12: Thu Jan 27 12:34:17 CET 2011
+	- cpan namespace collission, moved IO::Mux -> IOMux
+	- missing dependency on Log::Report [cpantesters]
 
 version 0.11: Wed Jan 26 16:29:12 CET 2011
 	- bug-fixes and many extensions

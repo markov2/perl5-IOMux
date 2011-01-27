@@ -1,8 +1,8 @@
 use warnings;
 use strict;
 
-package IO::Mux;
-use Log::Report 'io-mux';
+package IOMux;
+use Log::Report 'iomux';
 
 use List::Util  'min';
 use POSIX       'errno_h';
@@ -14,19 +14,19 @@ use constant
   };
 
 =chapter NAME
-IO::Mux - simplify use of file-event loops
+IOMux - simplify use of file-event loops
 
 =chapter SYNOPSIS
-  use IO::Mux;
-  use IO::Mux::Socket::TCP;
+  use IOMux;
+  use IOMux::Socket::TCP;
 
-  my $mux    = IO::Mux->new;
-  my $server = IO::Mux::Socket::TCP->new(...);
+  my $mux    = IOMux->new;
+  my $server = IOMux::Socket::TCP->new(...);
   $mux->add($server);
 
 =chapter DESCRIPTION
 
-C<IO::Mux> is designed to take the effort out of managing multiple socket,
+C<IOMux> is designed to take the effort out of managing multiple socket,
 file or pipe connections within one process. It is essentially a really
 fancy front end to various kinds of event mechanisms, like C<select>
 and C<poll>. In addition to maintaining the event loop, all input and
@@ -76,8 +76,8 @@ sub init($)
 
 =method add HANDLER|BUNDLE
 Add an HANDLER or BUNDLE to the multiplexer. Handlers extend
-M<IO::Mux::Handler>. Bundles are related sets of handlers and
-extend M<IO::Mux::Bundle>.
+M<IOMux::Handler>. Bundles are related sets of handlers and
+extend M<IOMux::Bundle>.
 =cut
 
 # add() is the main user interface to mux, because from then the
@@ -87,7 +87,7 @@ extend M<IO::Mux::Bundle>.
 sub add($)
 {   my ($self, $handler) = @_;
 
-    UNIVERSAL::isa($handler, 'IO::Mux::Handler')
+    UNIVERSAL::isa($handler, 'IOMux::Handler')
         or error __x"attempt to add non handler {pkg}"
           , pkg => (ref $handler || $handler);
 
@@ -96,12 +96,12 @@ sub add($)
 }
 
 =method open MODE, PARAMS
-This C<open()> provides a simplified interface to M<IO::Mux::Open>, which on
+This C<open()> provides a simplified interface to M<IOMux::Open>, which on
 its turn is a simplification on using all kinds of handlers. See the manual
-of M<IO::Mux::Open> for an extended description of the use.
+of M<IOMux::Open> for an extended description of the use.
 
 =example
-  use IO::Mux::Open '-|';  # loads handler code
+  use IOMux::Open '-|';  # loads handler code
   sub print_line($$)
   {   my ($handler, $line) = @_;
       print "line = $line";
@@ -112,13 +112,13 @@ of M<IO::Mux::Open> for an extended description of the use.
   $who->readline(\&print_line);
 
   # equivalent to the longer
-  my $who = IO::Mux::Open->new('-|', 'who');
+  my $who = IOMux::Open->new('-|', 'who');
   $mux->add($who);
   $who->readline(\&print_line);
 
   # or even longer
-  use IO::Mux::Pipe::Read;
-  my $who = IO::Mux::Pipe::Read->new(command => 'who');
+  use IOMux::Pipe::Read;
+  my $who = IOMux::Pipe::Read->new(command => 'who');
   $mux->add($who);
   $who->readline(\&print_line);
   
@@ -126,9 +126,9 @@ of M<IO::Mux::Open> for an extended description of the use.
 
 sub open(@)
 {   my $self = shift;
-    IO::Mux::Open->can('new')
-        or error __x"IO::Mux::Open not loaded";
-    my $conn = IO::Mux::Open->new(@_);
+    IOMux::Open->can('new')
+        or error __x"IOMux::Open not loaded";
+    my $conn = IOMux::Open->new(@_);
     $self->add($conn) if $conn;
     $conn;
 }
@@ -204,7 +204,7 @@ sub endLoop($) { $_[0]->{IM_endloop} = $_[1] }
 =section For internal use
 
 The following methods are provided, but end-users should avoid calling
-these methods directly: call them via the M<IO::Mux::Handler>.
+these methods directly: call them via the M<IOMux::Handler>.
 
 =method handlers
 Returns a list of all registered handlers (also the sockets).
@@ -333,15 +333,15 @@ __END__
 =section Installation
 
 Many components of IO-driven programming are quite platform dependent.
-Therefore, C<IO::Mux> does not enforce the installation of these
+Therefore, C<IOMux> does not enforce the installation of these
 dependencies during installation. However, when you choose to use some of
 the components, you will discover you need to install additional modules.
-For instance, when you use M<IO::Mux::Poll> you will need M<IO::Poll>.
+For instance, when you use M<IOMux::Poll> you will need M<IO::Poll>.
 
 Many perl modules (like LWP) use autoloading to get additional code in
 when it gets used. This is a nice help for users who do not need to load
 those modules explicitly. It is also a speed-up for the boot-time of
-scripts. However, C<IO::Mux> is usually run in a daemon (see F<examples/>
+scripts. However, C<IOMux> is usually run in a daemon (see F<examples/>
 directory) which should load all code before child processes are started.
 Besides, initialization time does not really matter for daemons.
 
@@ -350,13 +350,13 @@ Besides, initialization time does not really matter for daemons.
 The following event managers are available on the moment:
 
 =over 4
-=item * M<IO::Mux::Select>
+=item * M<IOMux::Select>
 uses a C<select> call (see "man 2 select" on UNIX/Linux). The number
 of file handles it can monitor is limited (but quite large) and the
 overhead increases with the number of handles. On Windows only usable
 with sockets, no pipes nor files.
 
-=item * M<IO::Mux::Poll>
+=item * M<IOMux::Poll>
 uses a C<poll> call (see "man 2 poll" on UNIX/Linux). Not available
 on Windows, afaik. More efficient than C<select> when the number of
 file handles grows, and many more filehandles can be monitored at
@@ -377,18 +377,18 @@ The following handles are supported, although maybe not on your
 platform.
 
 =over 4
-=item * M<IO::Mux::Service::TCP>
+=item * M<IOMux::Service::TCP>
 A server for TCP based application, like a web-server. On each
-incoming connection, a M<IO::Mux::Net::TCP> will be started to
+incoming connection, a M<IOMux::Net::TCP> will be started to
 handle it.
 
-=item * M<IO::Mux::Net::TCP>
+=item * M<IOMux::Net::TCP>
 Handle a single TCP connection.
 
-=item * M<IO::Mux::File::Read> and M<IO::Mux::File::Write>
+=item * M<IOMux::File::Read> and M<IOMux::File::Write>
 Read and write a file asynchronously.
 
-=item * M<IO::Mux::Pipe::Read> and M<IO::Mux::Pipe::Write>
+=item * M<IOMux::Pipe::Read> and M<IOMux::Pipe::Write>
 Read the output from an command, respectively send bytes to
 and external command.
 
@@ -408,7 +408,7 @@ work as well.
 
 =subsubsection Difference to IO::Multiplex
 
-The M<IO::Mux> (I<Mux>) implementation is much closer to M<IO::Multiplex>
+The M<IOMux> (I<Mux>) implementation is much closer to M<IO::Multiplex>
 (I<Plex>) than you may expect. Similar enough to write a comparison.
 
 Main differences:
@@ -454,11 +454,11 @@ trusted even files (which may come from stalled NFS partitions).
 =subsection IO::Async / Net::Async
 
 Paul Evans has developed a large number of modules which is more
-feature complete than C<IO::Mux>. It supports far more event loops,
+feature complete than C<IOMux>. It supports far more event loops,
 is better tested, and has many higher level applications ready to
 be used.
 
-Certain applications will benefit from M<IO::Mux> (especially my
+Certain applications will benefit from M<IOMux> (especially my
 personal development projects), because it is based on the M<OODoc>
 module for object oriented perl module documentation, and M<Log::Report>
 for error handling and translations. Besides, the M<IO::Multiplex>

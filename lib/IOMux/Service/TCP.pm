@@ -1,16 +1,16 @@
 use warnings;
 use strict;
 
-package IO::Mux::Service::TCP;
-use base 'IO::Mux::Handler::Service';
+package IOMux::Service::TCP;
+use base 'IOMux::Handler::Service';
 
-use Log::Report 'io-mux';
-use IO::Mux::Net::TCP ();
+use Log::Report 'iomux';
+use IOMux::Net::TCP ();
 
 use Socket 'SOCK_STREAM';
 
 =chapter NAME
-IO::Mux::Service::TCP - TCP (socket) based service
+IOMux::Service::TCP - TCP (socket) based service
 
 =chapter SYNOPSIS
 
@@ -27,7 +27,7 @@ well.
 
 =requires conn_type CLASS|CODE
 The CLASS (package name) of client to be created for each new contact.
-This CLASS must extend  M<IO::Mux::Net::TCP>. You may also provide a
+This CLASS must extend  M<IOMux::Net::TCP>. You may also provide a
 CODE reference which will be called with the socket leading to the client.
 
 =option  conn_opts ARRAY

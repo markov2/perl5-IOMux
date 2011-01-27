@@ -1,18 +1,18 @@
 use warnings;
 use strict;
 
-package IO::Mux::Bundle;
-use base 'IO::Mux::Handler::Read', 'IO::Mux::Handler::Write';
+package IOMux::Bundle;
+use base 'IOMux::Handler::Read', 'IOMux::Handler::Write';
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 
 ##### WORK IN PROGRESS!
 
 =chapter NAME
-IO::Mux::Bundle - logical group of connections
+IOMux::Bundle - logical group of connections
 
 =chapter SYNOPSIS
-  my $syscall = IO::Mux::Bundle::Parallel->new(...);
+  my $syscall = IOMux::Bundle::Parallel->new(...);
   $mux->add($syscall);
 
 =chapter DESCRIPTION
@@ -27,10 +27,10 @@ a set of different connections with a single purpose.
 The C<stdin>, C<stdout> and C<stderr> objects are from the perspective
 of the other side.
 
-=requires stdin  M<IO::Mux::Handler::Write>  object
-=requires stdout M<IO::Mux::Handler::Read>   object
+=requires stdin  M<IOMux::Handler::Write>  object
+=requires stdout M<IOMux::Handler::Read>   object
 
-=option   stderr M<IO::Mux::Handler::Read>   object
+=option   stderr M<IOMux::Handler::Read>   object
 =default  stderr <undef>
 =cut
 
@@ -43,16 +43,16 @@ sub init($)
 
     my $in   = $self->{IMB_stdin}  = $args->{stdin}
         or error __x"no stdin handler for {name}", name => $name;
-    UNIVERSAL::isa($in, 'IO::Mux::Handler::Write')
+    UNIVERSAL::isa($in, 'IOMux::Handler::Write')
         or error __x"stdin {name} is not at writer", name => $name;
 
     my $out = $self->{IMB_stdout} = $args->{stdout}
         or error __x"no stdout handler for {name}", name => $name;
-    UNIVERSAL::isa($out, 'IO::Mux::Handler::Read')
+    UNIVERSAL::isa($out, 'IOMux::Handler::Read')
         or error __x"stdout {name} is not at reader", name => $name;
 
     my $err = $self->{IMB_stderr} = $args->{stderr};
-    !$err || UNIVERSAL::isa($out, 'IO::Mux::Handler::Read')
+    !$err || UNIVERSAL::isa($out, 'IOMux::Handler::Read')
         or error __x"stderr {name} is not at reader", name => $name;
 
     my @filenos = ($in->fileno, $out->fileno);

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# This script can be used as template for daemons using IO::Mux.
+# This script can be used as template for daemons using IOMux.
 # The code is more verbose than needed in the common case.
 #
 # You may run the test with
@@ -11,9 +11,9 @@ use strict;
 use Log::Report;
 use Any::Daemon;
 
-#use IO::Mux::Select;
-use IO::Mux::Poll;
-use IO::Mux::Socket::TCP;
+#use IOMux::Select;
+use IOMux::Poll;
+use IOMux::Socket::TCP;
 
 use Getopt::Long   qw/GetOptions :config no_ignore_case bundling/;
 use File::Basename qw/basename/;
@@ -82,13 +82,13 @@ exit 1;   # will never be called
 
 sub run_multiplexer()
 {
-#   my $mux    = IO::Mux::Select->new;
-    my $mux    = IO::Mux::Poll->new;
+#   my $mux    = IOMux::Select->new;
+    my $mux    = IOMux::Poll->new;
 
 eval {
     # Create one or more listening TCP or UDP sockets.
     my $addr   = "$net_opts{host}:$net_opts{port}";
-    my $server = IO::Mux::Socket::TCP->new
+    my $server = IOMux::Socket::TCP->new
       ( # Options which start with Caps are for IO::Socket::INET/::SSL
         # you may also pass a prepared socket.
         LocalAddr => $addr
@@ -98,7 +98,7 @@ eval {
 
         # more options
       , name      => 'echo'           # improves error msgs
-      , conn_type => "IO::Mux::Echo"  # required, see below
+      , conn_type => "IOMux::Echo"  # required, see below
       );
    $mux->add($server);
 
@@ -121,8 +121,8 @@ sub heartbeat($$$)
 # Simple echo service which puts back all data it received.
 # Usually in a seperate file.
 
-package IO::Mux::Echo;
-use base 'IO::Mux::Net::TCP';
+package IOMux::Echo;
+use base 'IOMux::Net::TCP';
 
 use warnings;
 use strict;

@@ -1,10 +1,10 @@
 use warnings;
 use strict;
 
-package IO::Mux::Select;
-use base 'IO::Mux';
+package IOMux::Select;
+use base 'IOMux';
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 
 use List::Util  'min';
 use POSIX       'errno_h';
@@ -12,20 +12,20 @@ use POSIX       'errno_h';
 $SIG{PIPE} = 'IGNORE';   # pipes are handled in select
 
 =chapter NAME
-IO::Mux::Select - simplify use of select()
+IOMux::Select - simplify use of select()
 
 =chapter SYNOPSIS
-  use IO::Mux::Select;
+  use IOMux::Select;
 
-  my $mux    = IO::Mux::Select->new;
-  my $server = IO::Mux::Service::TCP->new(...);
+  my $mux    = IOMux::Select->new;
+  my $server = IOMux::Service::TCP->new(...);
   $mux->add($server);
   $mux->loop;
 
 =chapter DESCRIPTION
 Multiplexer implemented around the C<select()> system call. This C<select()>
 is usually less powerful and slower than the C<poll()> call (implemented
-in M<IO::Mux::Poll>) however probably available on more systems.
+in M<IOMux::Poll>) however probably available on more systems.
 
 =chapter METHODS
 

@@ -1,13 +1,13 @@
 use warnings;
 use strict;
 
-package IO::Mux::Handler::Service;
-use base 'IO::Mux::Handler';
+package IOMux::Handler::Service;
+use base 'IOMux::Handler';
 
-use Log::Report       'io-mux';
+use Log::Report       'iomux';
 
 =chapter NAME
-IO::Mux::Handler::Service - any mux service
+IOMux::Handler::Service - any mux service
 
 =chapter SYNOPSIS
   # only use extensions

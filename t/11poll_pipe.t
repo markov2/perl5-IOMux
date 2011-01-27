@@ -16,10 +16,10 @@ BEGIN { eval "require IO::Poll";
         plan tests => 12;
       }
 
-use_ok('IO::Mux::Poll');
+use_ok('IOMux::Poll');
 
-my $mux = IO::Mux::Poll->new;
-isa_ok($mux, 'IO::Mux::Poll');
+my $mux = IOMux::Poll->new;
+isa_ok($mux, 'IOMux::Poll');
 
 my $tempfn = mktemp 'iomux-test.XXXXX';
 ok(1, "tempfile = $tempfn");
@@ -34,10 +34,10 @@ exit 0;
 #####
 
 sub check_write()
-{   use_ok('IO::Mux::Pipe::Write');
+{   use_ok('IOMux::Pipe::Write');
 
-    my $pw = IO::Mux::Pipe::Write->new(command => ['sort','-o',$tempfn]);
-    isa_ok($pw, 'IO::Mux::Pipe::Write');
+    my $pw = IOMux::Pipe::Write->new(command => ['sort','-o',$tempfn]);
+    isa_ok($pw, 'IOMux::Pipe::Write');
     my $pw2 = $mux->add($pw);
 
     $pw->write(\"tic\ntac\n");
@@ -47,19 +47,19 @@ sub check_write()
 
 sub written($)
 {   my $pw = shift;
-    isa_ok($pw, 'IO::Mux::Pipe::Write');
+    isa_ok($pw, 'IOMux::Pipe::Write');
 
 #unlink $tempfn;
-    use_ok('IO::Mux::Pipe::Read');
-    my $pr = IO::Mux::Pipe::Read->new(command => ['cat', $tempfn ]);
-    isa_ok($pr, 'IO::Mux::Pipe::Read');
+    use_ok('IOMux::Pipe::Read');
+    my $pr = IOMux::Pipe::Read->new(command => ['cat', $tempfn ]);
+    isa_ok($pr, 'IOMux::Pipe::Read');
     my $pr2 = $mux->add($pr);
     $pr->slurp(\&read_all);
 }
 
 sub read_all($$)
 {   my ($pr, $bytes) = @_;
-   isa_ok($pr, 'IO::Mux::Pipe::Read');
+   isa_ok($pr, 'IOMux::Pipe::Read');
    is($$bytes, "tac\ntic\ntoe\n");
    $pr->close;
    ok($!==0);

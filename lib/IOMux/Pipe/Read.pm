@@ -1,43 +1,34 @@
 use warnings;
 use strict;
 
-package IO::Mux::Pipe::Write;
-use base 'IO::Mux::Handler::Write';
+package IOMux::Pipe::Read;
+use base 'IOMux::Handler::Read';
 
-use Log::Report    'io-mux';
+use Log::Report    'iomux';
 use Fcntl;
 use POSIX          qw/:errno_h :sys_wait_h/;
-use File::Spec     ();
 use File::Basename 'basename';
 
-use constant PIPE_BUF_SIZE => 4096;
-
 =chapter NAME
-IO::Mux::Pipe::Write - write to an external command
+IOMux::Pipe::Read - read from an external command
 
 =chapter SYNOPSIS
-  my $mux = IO::Mux::Select->new;  # or ::Poll
+  my $mux = IOMux::Select->new;  # or ::Poll
 
-  use IO::Mux::Open '|-';
-  my $pipe = $mux->open('|-', $command, @cmd_options);
+  use IOMux::Open '-|';
+  my $pipe = $mux->open('-|', $command, @cmd_options);
 
-  use IO::Mux::Pipe::Write;
-  my $pipe = IO::Mux::Pipe::Write->new
-    (command => [$command, @cmd_options]);
+  use IOMux::Pipe::Read;
+  my $pipe = IOMux::Pipe::Read->new
+    ( command => [$command, @cmd_options] );
   $mux->add($pipe);
 
-  $pipe->write($text);
-  $pipe->print($text);
-
-  write $pipe $text;
-  print $pipe $text;
+  $pipe->getline(sub {print "$_[0]\n"});
 
 =chapter DESCRIPTION
-In an event driven program, you must be careful with every Operation
-System call, because it can block the event mechanism, hence the program
-as a whole. Often you can be lazy with writes, because its communication
-buffers are usually working quite asynchronous... but not always. You
-may skip the callbacks for small writes and prints.
+In an event driven program, reading is harder to use than writing: the
+read will very probably be stalled until data has arrived, so you will
+need a callback to handle the resulting data.
 
 =chapter METHODS
 
@@ -50,17 +41,17 @@ The external command to be executed. Either the COMMAND needs to
 parameters, or you need to pass an ARRAY of the command name and
 all its parameters.
 
-=default name '|$cmd'
+=default read_size 4096
+=default name  '$cmd|'
 =cut
 
 sub init($)
 {   my ($self, $args) = @_;
-
     my $command = $args->{command}
         or error __x"no command to run specified in {pkg}", pkg => __PACKAGE__;
 
     my ($cmd, @cmdopts) = ref $command eq 'ARRAY' ? @$command : $command;
-    my $name = $args->{name} = '|'.(basename $cmd);
+    my $name = $args->{name} = (basename $cmd)."|";
 
     my ($rh, $wh);
     pipe $rh, $wh
@@ -72,22 +63,24 @@ sub init($)
 
     if($pid==0)
     {   # client
-        close $wh;
-        open STDIN, '<&', $rh
-            or fault __x"failed to redirect STDIN for pipe {cmd}", cmd => $name;
-        open STDOUT, '>', File::Spec->devnull;
+        close $rh;
+        open STDIN,  '<', File::Spec->devnull;
+        open STDOUT, '>&', $wh
+            or fault __x"failed to redirect STDOUT for pipe {cmd}", cmd=>$name;
         open STDERR, '>', File::Spec->devnull;
 
         exec $cmd, @cmdopts
             or fault __x"failed to exec for pipe {cmd}", cmd => $name;
     }
-    $self->{IMPW_pid} = $pid;
 
     # parent
 
-    close $rh;
-    fcntl $wh, F_SETFL, O_NONBLOCK;
-    $args->{fh} = $wh;
+    $self->{IMPR_pid}    = $pid;
+    $args->{read_size} ||= 4096;  # Unix typical BUFSIZ
+
+    close $wh;
+    fcntl $rh, F_SETFL, O_NONBLOCK;
+    $args->{fh} = $rh;
 
     $self->SUPER::init($args);
     $self;
@@ -95,19 +88,19 @@ sub init($)
 
 =c_method bare OPTIONS
 Creates a pipe, but does not start a process (yet). Used by
-M<IO::Mux::IPC>, which needs three pipes for one process. Returned
-is not only a new pipe object, but also a read handle to be
+M<IOMux::IPC>, which needs three pipes for one process. Returned
+is not only a new pipe object, but also a write handle to be
 connected to the other side.
 
-All OPTIONS which are available to M<IO::Mux::Handler::Write::new()>
+All OPTIONS which are available to M<IOMux::Handler::Read::new()>
 can be used here as well.
 
 =option  read_size INTEGER
 =default read_size 4096
 
 =example
-  my ($in, $in_rh)
-      = IO::Mux::Pipe::Write->bare(name => 'stdin');
+  my ($out, $out_rh)
+      = IOMux::Pipe::Read->bare(name => 'stdout');
 =cut
 
 sub bare($%)
@@ -116,27 +109,27 @@ sub bare($%)
 
     my ($rh, $wh);
     pipe $rh, $wh
-        or fault __x"cannot create bare pipe writer";
+        or fault __x"cannot create bare pipe reader";
 
-    $args{read_size} ||= 4096;
+    $args{read_size} ||= 4096;  # Unix typical BUFSIZ
 
-    fcntl $wh, F_SETFL, O_NONBLOCK;
-    $args{fh} = $wh;
+    fcntl $rh, F_SETFL, O_NONBLOCK;
+    $args{fh} = $rh;
 
     $self->SUPER::init(\%args);
-    ($self, $rh);
+    ($self, $wh);
 }
 
 =c_method open MODE, (CMD, CMDOPTS)|(CMDARRAY, OPTIONS)
-Open the pipe to write. MODE is always C<< -| >>.  When you need to
+Open the pipe to read. MODE is always C<< -| >>.  When you need to
 pass additional OPTIONS to the implied M<new()>, then you must use
 an ARRAY for command name and its optional parameters.
 =examples
-  my $mux = IO::Mux::Poll->new;
-  $mux->open('|-', 'lpr', '-#4');  # no opts
-  $mux->open('|-', ['lpr', '-#4'], %opts);
-  $mux->open('|-', 'lpr');        # no opts
-  $mux->open('|-', ['lpr'], %opts);
+  my $mux = IOMux::Poll->new;
+  $mux->open('-|', 'who', '-H');  # no opts
+  $mux->open('-|', ['who', '-H'], %opts);
+  $mux->open('-|', 'who');        # no opts
+  $mux->open('-|', ['who'], %opts);
 
 =cut
 
@@ -156,21 +149,19 @@ The bits of the open mode.
 The process id of the child on the other side of the pipe.
 =cut
 
-sub mode()     {shift->{IMPW_mode}}
-sub childPid() {shift->{IMPW_pid}}
+sub mode()     {shift->{IMPR_mode}}
+sub childPid() {shift->{IMPR_pid}}
 
 #-------------------
 
 sub close($)
 {   my ($self, $cb) = @_;
-    my $pid = $self->{IMPW_pid}
+    my $pid = $self->{IMPR_pid}
         or return $self->SUPER::close($cb);
 
     waitpid $pid, WNOHANG;
     local $?;
     $self->SUPER::close($cb);
 }
-
-
 
 1;

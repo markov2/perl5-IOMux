@@ -16,10 +16,10 @@ BEGIN { eval "require IO::Poll";
         plan tests => 21;
       }
 
-use_ok('IO::Mux::Poll');
+use_ok('IOMux::Poll');
 
-my $mux = IO::Mux::Poll->new;
-isa_ok($mux, 'IO::Mux::Poll');
+my $mux = IOMux::Poll->new;
+isa_ok($mux, 'IOMux::Poll');
 
 my $tempfn = mktemp 'iomux-test.XXXXX';
 ok(1, "tempfile = $tempfn");
@@ -34,11 +34,11 @@ exit 0;
 #####
 
 sub check_write()
-{   use_ok('IO::Mux::File::Write');
+{   use_ok('IOMux::File::Write');
 
-    my $wr = IO::Mux::File::Write->new(file => $tempfn);
+    my $wr = IOMux::File::Write->new(file => $tempfn);
 
-    isa_ok($wr, 'IO::Mux::File::Write');
+    isa_ok($wr, 'IOMux::File::Write');
     my $wr2 = $mux->add($wr);
     cmp_ok($wr, 'eq', $wr2);
     $wr->print("tic\n");
@@ -48,11 +48,11 @@ sub check_write()
 
 sub check_read($)
 {   my $wr = shift;
-    isa_ok($wr, 'IO::Mux::File::Write');
+    isa_ok($wr, 'IOMux::File::Write');
 
-    use_ok('IO::Mux::File::Read');
-    my $rd = IO::Mux::File::Read->new(file => $tempfn);
-    isa_ok($rd, 'IO::Mux::File::Read');
+    use_ok('IOMux::File::Read');
+    my $rd = IOMux::File::Read->new(file => $tempfn);
+    isa_ok($rd, 'IOMux::File::Read');
 
     my $rd2 = $mux->add($rd);
     cmp_ok($rd, 'eq', $rd2);
@@ -62,14 +62,14 @@ sub check_read($)
 
 sub check_read2($)
 {   my ($rd, $bytes) = @_;
-    isa_ok($rd, 'IO::Mux::File::Read');
+    isa_ok($rd, 'IOMux::File::Read');
     $rd->close;
 
     is(ref $bytes, 'SCALAR');
     is($$bytes, "tic\ntac\n");
 
-    my $wr2 = IO::Mux::File::Write->new(file => $tempfn, append => 1);
-    isa_ok($wr2, 'IO::Mux::File::Write');
+    my $wr2 = IOMux::File::Write->new(file => $tempfn, append => 1);
+    isa_ok($wr2, 'IOMux::File::Write');
     $mux->add($wr2);
     $wr2->print("toe\n");
     $wr2->close(\&check_write2);
@@ -77,11 +77,11 @@ sub check_read2($)
 
 sub check_write2()
 {   my $wr2 = shift;
-    isa_ok($wr2, 'IO::Mux::File::Write');
+    isa_ok($wr2, 'IOMux::File::Write');
     $wr2->close;
 
-    my $rd2 = IO::Mux::File::Read->new(file => $tempfn);
-    isa_ok($rd2, 'IO::Mux::File::Read');
+    my $rd2 = IOMux::File::Read->new(file => $tempfn);
+    isa_ok($rd2, 'IOMux::File::Read');
     $mux->add($rd2);
     $rd2->readline(\&check_read3);
 }

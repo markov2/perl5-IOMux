@@ -1,24 +1,24 @@
 use warnings;
 use strict;
 
-package IO::Mux::File::Read;
-use base 'IO::Mux::Handler::Read';
+package IOMux::File::Read;
+use base 'IOMux::Handler::Read';
 
-use Log::Report    'io-mux';
+use Log::Report    'iomux';
 use Fcntl;
 use File::Basename 'basename';
 
 =chapter NAME
-IO::Mux::File::Read - write to file
+IOMux::File::Read - write to file
 
 =chapter SYNOPSIS
-  my $mux = IO::Mux::Select->new;  # or ::Poll
+  my $mux = IOMux::Select->new;  # or ::Poll
 
-  use IO::Mux::Open '<';
+  use IOMux::Open '<';
   my $file = $mux->open('<', $filename);
 
-  use IO::Mux::File::Read;
-  my $file = IO::Mux::File::Read->new(file => $filename);
+  use IOMux::File::Read;
+  my $file = IOMux::File::Read->new(file => $filename);
   $mux->add($file);
 
   $file->getline(sub {print "\n"});

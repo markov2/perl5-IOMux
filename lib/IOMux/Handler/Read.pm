@@ -1,16 +1,16 @@
 use warnings;
 use strict;
 
-package IO::Mux::Handler::Read;
-use base 'IO::Mux::Handler';
+package IOMux::Handler::Read;
+use base 'IOMux::Handler';
 
-use Log::Report    'io-mux';
+use Log::Report    'iomux';
 use Fcntl;
 use POSIX          'errno_h';
 use File::Basename 'basename';
 
 =chapter NAME
-IO::Mux::Handler::Read - any mux reader
+IOMux::Handler::Read - any mux reader
 
 =chapter SYNOPSIS
   # only use extensions

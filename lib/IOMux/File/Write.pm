@@ -1,24 +1,24 @@
 use warnings;
 use strict;
 
-package IO::Mux::File::Write;
-use base 'IO::Mux::Handler::Write';
+package IOMux::File::Write;
+use base 'IOMux::Handler::Write';
 
-use Log::Report    'io-mux';
+use Log::Report    'iomux';
 use Fcntl;
 use File::Basename 'basename';
 
 =chapter NAME
-IO::Mux::File::Write - write to file
+IOMux::File::Write - write to file
 
 =chapter SYNOPSIS
-  my $mux = IO::Mux::Select->new;  # or ::Poll
+  my $mux = IOMux::Select->new;  # or ::Poll
 
-  use IO::Mux::Open '>';
+  use IOMux::Open '>';
   my $file = $mux->open('>', $filename);
 
-  use IO::Mux::File::Write;
-  my $file = IO::Mux::File::Write->new
+  use IOMux::File::Write;
+  my $file = IOMux::File::Write->new
     (file => $filename, mode => '>>');
   $mux->add($file);
 

@@ -1,28 +1,28 @@
 use warnings;
 use strict;
 
-package IO::Mux::IPC;
-use base 'IO::Mux::Bundle';
+package IOMux::IPC;
+use base 'IOMux::Bundle';
 
-use Log::Report    'io-mux';
+use Log::Report    'iomux';
 
-use IO::Mux::Pipe::Read  ();
-use IO::Mux::Pipe::Write ();
+use IOMux::Pipe::Read  ();
+use IOMux::Pipe::Write ();
 
 use POSIX          qw/:errno_h :sys_wait_h/;
 use File::Basename 'basename';
 
 =chapter NAME
-IO::Mux::IPC - exchange data with external command
+IOMux::IPC - exchange data with external command
 
 =chapter SYNOPSIS
-  my $mux = IO::Mux::Select->new;  # or ::Poll
+  my $mux = IOMux::Select->new;  # or ::Poll
 
-  use IO::Mux::Open '|-|', '|=|';
+  use IOMux::Open '|-|', '|=|';
   my $pipe = $mux->open('|-|', $cmd, @cmdopts);
 
-  use IO::Mux::IPC;
-  my $ipc = IO::Mux::IPC->new(command => [$cmd, @cmdopts]);
+  use IOMux::IPC;
+  my $ipc = IOMux::IPC->new(command => [$cmd, @cmdopts]);
   $mux->add($ipc);
 
   $pipe->getline(sub {print "$_[0]\n"});
@@ -32,7 +32,7 @@ With this handler, you set-up a two way communication between the
 current process and some other process. This is not easy to program:
 you may need to play with timeouts every once in a while.
 
-This module is based on M<IO::Mux::Bundle>, because it will use
+This module is based on M<IOMux::Bundle>, because it will use
 two or three pipes to facilitate the communication.
 
 =chapter METHODS
@@ -79,11 +79,11 @@ sub init($)
     }
 
     ($args->{stdin},  my $in_rh)
-       = IO::Mux::Pipe::Write->bare(name => 'stdin');
+       = IOMux::Pipe::Write->bare(name => 'stdin');
     ($args->{stdout}, my $out_wh)
-       = IO::Mux::Pipe::Read->bare(name => 'stdout');
+       = IOMux::Pipe::Read->bare(name => 'stdout');
     ($args->{stderr}, my $err_wh)
-      = $errors ? IO::Mux::Pipe::Read->bare(name => 'stderr') : ();
+      = $errors ? IOMux::Pipe::Read->bare(name => 'stderr') : ();
 
     my $pid = fork;
     defined $pid
@@ -124,7 +124,7 @@ Open the pipe to read. MODE is either C<< |-| >> or C<< |=| >>.  When you
 need to pass additional OPTIONS to the implied M<new()>, then you must
 use an ARRAY for command name and its optional parameters.
 =examples
-  my $mux = IO::Mux::Poll->new;
+  my $mux = IOMux::Poll->new;
   $mux->open('|-|', 'sort', '-u');  # no opts
   $mux->open('|-|', ['sort', '-u'], %opts);
   $mux->open('|-|', 'sort');        # no opts

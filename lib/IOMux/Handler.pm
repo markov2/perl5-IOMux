@@ -1,9 +1,9 @@
 use warnings;
 use strict;
 
-package IO::Mux::Handler;
+package IOMux::Handler;
 
-use Log::Report  'io-mux';
+use Log::Report  'iomux';
 
 use Scalar::Util     'weaken';
 use Time::HiRes      'time';
@@ -13,7 +13,7 @@ use Fcntl;
 my $start_time = time;
 
 =chapter NAME
-IO::Mux::Handler - handle a connection
+IOMux::Handler - handle a connection
 
 =chapter SYNOPSIS
  # only extensions can be instantiated
@@ -49,7 +49,7 @@ sub init($)
 
 =c_method open MODE, WHAT, OPTIONS
 Most handlers provide an easy way to instantiate them via the
-M<IO::Mux::Open> module.
+M<IOMux::Open> module.
 =cut
 
 sub open() {panic}

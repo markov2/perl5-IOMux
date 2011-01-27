@@ -1,10 +1,10 @@
 use warnings;
 use strict;
 
-package IO::Mux::Handler::Write;
-use base 'IO::Mux::Handler';
+package IOMux::Handler::Write;
+use base 'IOMux::Handler';
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 use Fcntl;
 use POSIX 'errno_h';
 use File::Spec       ();;
@@ -13,7 +13,7 @@ use File::Basename   'basename';
 use constant PIPE_BUF_SIZE => 4096;
 
 =chapter NAME
-IO::Mux::Handler::Write - any mux writer
+IOMux::Handler::Write - any mux writer
 
 =chapter SYNOPSIS
   # only use extensions
@@ -198,7 +198,7 @@ to the write flag until an explicit M<write()> gets executed.
 
 =example
   package My::Service;
-  use base 'IO::Mux::Net::TCP';
+  use base 'IOMux::Net::TCP';
 
   sub mux_outbuffer_empty()
   {   my $self = shift;

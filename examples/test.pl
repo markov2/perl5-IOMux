@@ -15,10 +15,10 @@ use strict;
 use Log::Report;
 use Any::Daemon;
 
-#use IO::Mux::Select;
-use IO::Mux::Poll;
-use IO::Mux::Socket::TCP;
-use IO::Mux::Open  '>';
+#use IOMux::Select;
+use IOMux::Poll;
+use IOMux::Socket::TCP;
+use IOMux::Open  '>';
 
 my $temp_file = '/tmp/test-iomux';
 my $host_port = 'localhost:5422';
@@ -43,11 +43,11 @@ my ($service, $filewrite);
 
 sub run_multiplexer()
 {
-#   my $mux  = IO::Mux::Select->new;
-    my $mux  = IO::Mux::Poll->new;
+#   my $mux  = IOMux::Select->new;
+    my $mux  = IOMux::Poll->new;
 
 eval {
-    $service = IO::Mux::Socket::TCP->new
+    $service = IOMux::Socket::TCP->new
       ( LocalAddr => $host_port
       , Listen    => 5
       , Proto     => 'tcp'
@@ -67,7 +67,7 @@ info "EVAL: $@" if $@;
 }
 
 package My::Service;
-use base 'IO::Mux::Net::TCP';
+use base 'IOMux::Net::TCP';
 
 sub mux_input($)
 {   

@@ -1,19 +1,19 @@
 use warnings;
 use strict;
 
-package IO::Mux::Open;
+package IOMux::Open;
 
-use Log::Report 'io-mux';
+use Log::Report 'iomux';
 
 my %modes =
-  ( '-|'  => 'IO::Mux::Pipe::Read'
-  , '|-'  => 'IO::Mux::Pipe::Write'
-  , '|-|' => 'IO::Mux::IPC'
-  , '|=|' => 'IO::Mux::IPC'
-  , '>'   => 'IO::Mux::File::Write'
-  , '>>'  => 'IO::Mux::File::Write'
-  , '<'   => 'IO::Mux::File::Read'
-  , tcp   => 'IO::Mux::Net::TCP'
+  ( '-|'  => 'IOMux::Pipe::Read'
+  , '|-'  => 'IOMux::Pipe::Write'
+  , '|-|' => 'IOMux::IPC'
+  , '|=|' => 'IOMux::IPC'
+  , '>'   => 'IOMux::File::Write'
+  , '>>'  => 'IOMux::File::Write'
+  , '<'   => 'IOMux::File::Read'
+  , tcp   => 'IOMux::Net::TCP'
   );
 
 sub import(@)
@@ -28,10 +28,10 @@ sub import(@)
 }
     
 =chapter NAME
-IO::Mux::Open - simulate the open() function
+IOMux::Open - simulate the open() function
 
 =chapter SYNOPSIS
-  use IO::Mux::Open qw( -| |- |-| < > >> tcp);
+  use IOMux::Open qw( -| |- |-| < > >> tcp);
 
   # pipe for reading
   my $who = $mux->open('-|', 'who', 'am', 'i');
@@ -51,8 +51,8 @@ require (C<use>) lines of code.
 
 With this module, code is simplified. For instance, the real logic is:
 
-  use IO::Mux::Pipe::Read;
-  my $who = IO::Mux::Pipe::Read->new
+  use IOMux::Pipe::Read;
+  my $who = IOMux::Pipe::Read->new
    ( run_shell => [ 'who', 'am', 'i' ]
    );
   $mux->add($who);
@@ -60,7 +60,7 @@ With this module, code is simplified. For instance, the real logic is:
 
 In the short syntax provided with this module:
 
-  use IO::Mux::Open '-|';
+  use IOMux::Open '-|';
   my $who = $mux->open('-|', 'who', 'am', 'i');
   print <$who>;
 
@@ -75,13 +75,13 @@ object gets added to the mux as well.
 =c_method new MODE, PARAMS
 Available MODES are 
 
-    -|  IO::Mux::Pipe::Read
-   |-   IO::Mux::Pipe::Write
-   |-|  IO::Mux::IPC
-   |=|  IO::Mux::IPC          (with errors)
-    >   IO::Mux::File::Write
-    >>  IO::Mux::File::Write  (appendinf)
-    <   IO::Mux::File::Read
+    -|  IOMux::Pipe::Read
+   |-   IOMux::Pipe::Write
+   |-|  IOMux::IPC
+   |=|  IOMux::IPC          (with errors)
+    >   IOMux::File::Write
+    >>  IOMux::File::Write  (appendinf)
+    <   IOMux::File::Read
 =cut
 
 sub new($@)
