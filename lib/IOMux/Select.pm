@@ -112,12 +112,11 @@ sub one_go($$)
 
 #   trace "SELECT=".$self->showFlags($self->waitFlags);
 
-    my ($rdready, $wrready, $exready) = ('', '', '');
-    my ($numready, $timeleft) = select
-       +($rdready = $self->{IMS_readers})
-      , ($wrready = $self->{IMS_writers})
-      , ($exready = $self->{IMS_excepts})
-      , $wait;
+    my ($rdready, $wrready, $exready)
+       = @$self{ qw/IMS_readers IMS_writers IMS_excepts/ };
+
+    my ($numready, $timeleft)
+       = select $rdready, $wrready, $exready, $wait;
 
 #   trace "READY=".$self->showFlags($rdready, $wrready, $exready);
 

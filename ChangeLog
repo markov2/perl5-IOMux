@@ -1,6 +1,13 @@
 
 === version history for IOMux
 
+version 0.13: Tue Jul 21 14:01:51 CEST 2015
+	- manual documentation improvements.
+	- move comparison to other module into IOMux::Alternatives.
+	- remove eval{} from the examples, because Any::Daemon v0.12
+	  not has this by default.
+	- rarely, the regression test t/11* showed a race
+
 version 0.12: Thu Jan 27 12:34:17 CET 2011
 	- cpan namespace collission, moved IO::Mux -> IOMux
 	- missing dependency on Log::Report [cpantesters]

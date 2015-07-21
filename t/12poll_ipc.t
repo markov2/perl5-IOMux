@@ -8,11 +8,15 @@ use File::Temp qw/mktemp/;
 
 #use Log::Report mode => 3;  # debugging
 
-BEGIN { eval "require IO::Poll";
-        $@ and plan skip_all => "IO::Poll not installed";
+BEGIN
+{   eval "require IO::Poll";
+    $@ and plan skip_all => "IO::Poll not installed";
 
-        plan tests => 11;
-      }
+    $^O ne 'MSWin32'
+        or plan skip_all => "Windows only polls sockets";
+
+    plan tests => 11;
+}
 
 use_ok('IOMux::Poll');
 

@@ -10,11 +10,15 @@ use File::Temp qw/mktemp/;
 
 sub check_write();
 
-BEGIN { eval "require IO::Poll";
-        $@ and plan skip_all => "IO::Poll not installed";
+BEGIN
+{   eval "require IO::Poll";
+    $@ and plan skip_all => "IO::Poll not installed";
 
-        plan tests => 21;
-      }
+    $^O ne 'MSWin32'
+        or plan skip_all => "Windows only polls sockets";
+
+    plan tests => 21;
+}
 
 use_ok('IOMux::Poll');
 

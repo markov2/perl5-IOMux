@@ -85,7 +85,6 @@ sub run_multiplexer()
 #   my $mux    = IOMux::Select->new;
     my $mux    = IOMux::Poll->new;
 
-eval {
     # Create one or more listening TCP or UDP sockets.
     my $addr   = "$net_opts{host}:$net_opts{port}";
     my $server = IOMux::Socket::TCP->new
@@ -103,8 +102,6 @@ eval {
    $mux->add($server);
 
    $mux->loop(\&heartbeat);
-};
-info "EVAL: $@" if $@;
    exit 0;
 }
 

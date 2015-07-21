@@ -46,7 +46,6 @@ sub run_multiplexer()
 #   my $mux  = IOMux::Select->new;
     my $mux  = IOMux::Poll->new;
 
-eval {
     $service = IOMux::Socket::TCP->new
       ( LocalAddr => $host_port
       , Listen    => 5
@@ -61,8 +60,6 @@ eval {
    my $filewrite = $mux->open('>', $temp_file);
 
    $mux->loop;
-};
-info "EVAL: $@" if $@;
    exit 0;
 }
 

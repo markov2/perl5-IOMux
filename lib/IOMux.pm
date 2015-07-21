@@ -18,33 +18,41 @@ IOMux - simplify use of file-event loops
 
 =chapter SYNOPSIS
   use IOMux;
-  use IOMux::Socket::TCP;
+  use IOMux::Service::TCP;
 
   my $mux    = IOMux->new;
-  my $server = IOMux::Socket::TCP->new(...);
+  my $server = IOMux::Service::TCP->new(...);
   $mux->add($server);
+  $mux->loop;
+  exit 0;
 
 =chapter DESCRIPTION
 
 C<IOMux> is designed to take the effort out of managing multiple socket,
-file or pipe connections within one process. It is essentially a really
-fancy front end to various kinds of event mechanisms, like C<select>
-and C<poll>. In addition to maintaining the event loop, all input and
-output of the data stream gets buffered for you which tends to be quite
-difficult in event driven programs.
+file or pipe connections within a single process. It is essentially a
+really fancy front end to various kinds of event mechanisms, currently
+limited to C<select> and C<poll>.
 
-On many platforms, the capabilities of various event mechanisms do differ
+In addition to maintaining the event loop, all input and output of the
+data stream gets buffered for you which tends to be quite difficult in
+event driven programs. Methods are provided to simulate common methods
+for M<IO::Handle>
+
+On many platforms, the capabilities of various event mechanisms differ
 a lot. Be careful which mechanism you pick. Test it! Read the man-pages
 which contain information about limitations and please contribute
 information you discover.
 
 See L</DETAILS> far below for a long description about
 =over 4
-=item . event managers C<select()> and C<poll()>
-=item . managed file handles
-=item . differences with M<IO::Multiplex> and M<IO::Async>, plus
-=item . interesting implementation details.
+=item * event managers C<select()> and C<poll()>
+=item * managed file handles
+=item * interesting implementation details.
 =back
+
+There are at least ten other event modules on CPAN. See M<IOMux::Alternatives>
+for a comparison between this module and, amongst other, M<IO::Multiplex>,
+M<AnyEvent>, M<IO::Async> and <POE>.
 
 =chapter METHODS
 
@@ -138,7 +146,7 @@ Enter the main loop and start processing IO events. The loop will terminate
 when all handles are closed, serious errors emerge or M<endLoop()> was
 called.
 
-You may provide a HARTBEAT code reference, which will get called each
+You may provide a HEARTBEAT code reference, which will get called each
 time the internal C<select()> has found a file handle with something
 to do or a timeout has expired. As arguments, it get the multiplexer
 object, the number of events and the time left to the next timeout.
@@ -150,11 +158,13 @@ and the actual muxer type.
   exit 0;
 
 =example loop with heartbeat
-  $mux->loop(\&hb);
+
   sub hb($$)
   {   my ($mux, $count, $t) = @_;
+      ...
   }
 
+  $mux->loop(\&hb);
 =cut
 
 sub loop(;$)
@@ -204,12 +214,15 @@ sub endLoop($) { $_[0]->{IM_endloop} = $_[1] }
 =section For internal use
 
 The following methods are provided, but end-users should avoid calling
-these methods directly: call them via the M<IOMux::Handler>.
+these methods directly: call them via the specific extension of
+M<IOMux::Handler>.
 
 =method handlers
-Returns a list of all registered handlers (also the sockets).
+Returns a list of all registered handlers (also the listening sockets).
 =example
-  foreach my $conn ($mux->handlers) { ... }
+  foreach my $handler ($mux->handlers)
+  {   say $handler->name;
+  }
 =cut
 
 sub handlers()  {values %{shift->{IM_handlers}}}
@@ -258,7 +271,7 @@ sub remove($)
 
 =method fdset FILENO, STATE, READ, WRITE, EXCEPT
 Change the select bit STATE for the FILENO. Change the READ, WRITE
-and/or EXCEPTion state.
+and/or EXCEPTion state. End-users should never need this.
 =example
   # clear read and except, keep write
   $mux->fdset($conn->fileno, 0, 1, 0, 1);
@@ -386,82 +399,13 @@ handle it.
 Handle a single TCP connection.
 
 =item * M<IOMux::File::Read> and M<IOMux::File::Write>
-Read and write a file asynchronously.
+Read and write a file asynchronously, only few Operating Systems
+support this.
 
 =item * M<IOMux::Pipe::Read> and M<IOMux::Pipe::Write>
 Read the output from an command, respectively send bytes to
 and external command.
 
 =back
-
-=section Alternatives
-
-On CPAN, you can find various alternatives for this module.
-
-=subsection IO::Multiplex
-
-This module started as a rework of M<IO::Multiplex>. It follows the
-same concept, but with major internal and visible improvements. Some
-core logic of this module has been derived from work by Bruce J Keeler
-and Rob Brown. Examples, tests and documentation are derived from their
-work as well.
-
-=subsubsection Difference to IO::Multiplex
-
-The M<IOMux> (I<Mux>) implementation is much closer to M<IO::Multiplex>
-(I<Plex>) than you may expect. Similar enough to write a comparison.
-
-Main differences:
-
-=over 4
-
-=item . Event managers
-In Plex, all is organized around a C<select> loop.  In Mux, you have
-a choice between various mechanisms of which some still need to be
-implemented.
-
-=item . Callback objects
-In Plex, the file-handle may have a callback object associated to it. If
-not, a default is used.  In Mux, the callback has the focus, which has
-a file-handle associated to it. This use if the multiplexing C<select>
-less visible this way, which should simplify implementations.
-
-Mux does not support callbacks to name-spaces, because the object is
-used for per-handle administration. In Plex, that administration is
-located inside the multiplex object (and therefore difficult to extend
-with higher level applications)
-
-=item . Callback routines
-The Mux implementation defines the same C<mux_*> methods as Plex, but
-has organized them. In Plex, the connection accepting C<mux_connection>
-and the input callback C<mux_input> are always available, even though
-the callback object will only support one of both (if your abstraction
-is correct). In Mux, there is a clear distinction between various kinds
-of handlers.
-
-In Mux, you have a few more locations where you can hook the process,
-a few more callbacks.
-
-=item . Pipes and files
-Mux added support for file reading and writing, pipes and proxies.
-
-=item . Timeouts
-One should use timeouts on all handlers, because no connection can be
-trusted even files (which may come from stalled NFS partitions).
-
-=back
-
-=subsection IO::Async / Net::Async
-
-Paul Evans has developed a large number of modules which is more
-feature complete than C<IOMux>. It supports far more event loops,
-is better tested, and has many higher level applications ready to
-be used.
-
-Certain applications will benefit from M<IOMux> (especially my
-personal development projects), because it is based on the M<OODoc>
-module for object oriented perl module documentation, and M<Log::Report>
-for error handling and translations. Besides, the M<IO::Multiplex>
-interface is much easier to use than the IO::Async concept.
 
 =cut

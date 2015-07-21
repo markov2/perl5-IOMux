@@ -4,6 +4,7 @@ Makefile.PL
 examples/daemon.pl
 examples/test.pl
 lib/IOMux.pm
+lib/IOMux/Alternatives.pod
 lib/IOMux/Bundle.pm
 lib/IOMux/File/Read.pm
 lib/IOMux/File/Write.pm
