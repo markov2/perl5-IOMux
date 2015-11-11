@@ -19,12 +19,15 @@ IOMux::Handler - handle a connection
  # only extensions can be instantiated
 
 =chapter DESCRIPTION
+This is the generic base class for all kinds of connections, both the
+readers and the writers.  It is used to administer which file descriptors
+are in use in the mux.
 
 =chapter METHODS
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =option  name STRING
 =default name <stringified handle>
@@ -37,17 +40,17 @@ sub new(@)  {my $class = shift; (bless {}, $class)->init( {@_} ) }
 
 sub init($)
 {   my ($self, $args) = @_;
-    return $self if $self->{IMH_name}; # already initialized
+    return $self if $self->{IH_name}; # already initialized
 
-    my $name = $self->{IMH_name} = $args->{name} || "$self";
-    if(my $fh = $self->{IMH_fh} = $args->{fh})
-    {   $self->{IMH_fileno}   = $fh->fileno;
-        $self->{IMH_uses_ssl} = UNIVERSAL::isa($fh, 'IO::Socket::SSL');
+    my $name = $self->{IH_name} = $args->{name} || "$self";
+    if(my $fh = $self->{IH_fh} = $args->{fh})
+    {   $self->{IH_fileno}   = $fh->fileno;
+        $self->{IH_uses_ssl} = UNIVERSAL::isa($fh, 'IO::Socket::SSL');
     }
     $self;
 }
 
-=c_method open MODE, WHAT, OPTIONS
+=c_method open $mode, $what, %options
 Most handlers provide an easy way to instantiate them via the
 M<IOMux::Open> module.
 =cut
@@ -56,33 +59,35 @@ sub open() {panic}
 
 #-------------------------
 =section Accessors
-=method name
-=method mux
+=method name 
+=method mux 
 =cut
 
-sub name()   {shift->{IMH_name}}
-sub mux()    {shift->{IMH_mux}}
+sub name()   {shift->{IH_name}}
+sub mux()    {shift->{IH_mux}}
 
-=method fileno
+=method fileno 
 The sequence number of the filehandle, UNIX style.  See C<man 3 fileno>
-=method fh
+
+=method fh 
 Returns the filehandle.
-=method usesSSL
+
+=method usesSSL 
 =cut
 
-sub fileno() {shift->{IMH_fileno}}
-sub fh()     {shift->{IMH_fh}}
-sub usesSSL(){shift->{IMH_uses_ssl}}
+sub fileno() {shift->{IH_fileno}}
+sub fh()     {shift->{IH_fh}}
+sub usesSSL(){shift->{IH_uses_ssl}}
 
 #-----------------------
 =section User interface
 
 =subsection Connection
 
-=method timeout [TIMEOUT]
-Set (or get) the timer. The TIMEOUT value is a certain number of seconds
+=method timeout [$timeout]
+Set (or get) the timer. The $timeout value is a certain number of seconds
 in the future, after which the C<mux_timeout> callback is called.  When
-TIMEOUT is not defined or zero, the timer is cancelled.  Timers are not
+$timeout is not defined or zero, the timer is cancelled.  Timers are not
 reset automatically.
 
 When the timeout value is very large (larger then C<time> when the
@@ -104,28 +109,29 @@ least one C<select> loop will be used for this timeout is handled.
 
 sub timeout(;$)
 {   my $self  = shift;
-    @_ or return $self->{IMH_timeout};
+    @_ or return $self->{IH_timeout};
 
-    my $old   = $self->{IMH_timeout};
+    my $old   = $self->{IH_timeout};
     my $after = shift;
     my $when  = !$after      ? undef
       : $after > $start_time ? $after
       :                        ($after + time);
-    $self->{IMH_mux}->changeTimeout($self->{IMH_fileno}, $old, $when);
-    $self->{IMH_timeout} = $when;
+
+    $self->{IH_mux}->changeTimeout($self->{IH_fileno}, $old, $when);
+    $self->{IH_timeout} = $when;
 }
 
-=method close [CALLBACK]
-Close the handler. When the CALLBACK is provided, it will be called
+=method close [$callback]
+Close the handler. When the $callback is provided, it will be called
 after the filehandle has been closed and the object disconnected from
 the multiplexer.
 =cut
 
 sub close(;$)
 {   my ($self, $cb) = @_;
-    if(my $fh = delete $self->{IMH_fh})
-    {   if(my $mux = $self->{IMH_mux})
-        {   $mux->remove($self->{IMH_fileno});
+    if(my $fh = delete $self->{IH_fh})
+    {   if(my $mux = $self->{IH_mux})
+        {   $mux->remove($self->{IH_fileno});
         }
         $fh->close;
     }
@@ -142,42 +148,44 @@ The I<user interface> provides a higher level interaction then the
 raw interface. These methods may be extended by users, but there
 are usually simpler methods to achieve that.
 
-=method mux_init MUX, [HANDLER]
+=method muxInit $mux, [$handler]
 Called after the multiplexer has added this handler to its
 administration.
 
-In rare cases, it may happen that an other HANDLER needs to
+In rare cases, it may happen that an other $handler needs to
 be called when this filehandle get tickled, especially for
 tricks with bundles.
 =cut
 
-sub mux_init($;$)
+sub muxInit($;$)
 {   my ($self, $mux, $handler) = @_;
 
-    $self->{IMH_mux} = $mux;
-    weaken($self->{IMH_mux});
+    $self->{IH_mux} = $mux;
+    weaken($self->{IH_mux});
 
-    my $fileno = $self->{IMH_fileno};
+    my $fileno = $self->{IH_fileno};
     $mux->handler($fileno, $handler || $self);
 
-    if(my $timeout = $self->{IMH_timeout})
+    if(my $timeout = $self->{IH_timeout})
     {   $mux->changeTimeout($fileno, undef, $timeout);
     }
 
-    trace "mux add #$fileno, $self->{IMH_name}";
+    trace "mux add #$fileno, $self->{IH_name}";
 }
 
-=method mux_remove
+=method muxRemove 
 Remove the handler from the multiplexer.
 =cut
 
-sub mux_remove()
+sub muxRemove()
 {   my $self = shift;
-    delete $self->{IMH_mux};
-    trace "mux remove #$self->{IMH_fileno}, $self->{IMH_name}";
+    delete $self->{IH_mux};
+#use Carp 'cluck';
+#cluck "REMOVE";
+    trace "mux remove #$self->{IH_fileno}, $self->{IH_name}";
 }
 
-=method mux_timeout
+=method muxTimeout 
 Called when a timer expires on the FILEHANDLE.
 
 Use M<timeout()> to set (or clear) a timeout.
@@ -185,7 +193,7 @@ When new data is sent or received on the FILEHANDLE, that will B<not>
 expire the timeout.
 =cut
 
-sub mux_timeout()
+sub muxTimeout()
 {   my $self = shift;
     error __x"timeout set on {name} but not handled", name => $self->name;
 }
@@ -194,17 +202,17 @@ sub mux_timeout()
 
 =subsection Reading
 
-=method mux_read_flagged FILENO
+=method muxReadFlagged $fileno
 Called when the read flag is set for this handler.
 
 When you extend this module, you probably want to override
-C<mux_connection()> or C<mux_input()>, not this "raw" method.
+C<muxConnection()> or C<muxInput()>, not this "raw" method.
 
 =cut
 
-sub mux_read_flagged($)  { panic "no input expected on ". shift->name }
+#sub muxReadFlagged($)  { panic "no input expected on ". shift->name }
 
-=method mux_except_flagged FILENO
+=method muxExceptFlagged $fileno
 Called (in the rare case) that an exception event if flagged. This
 means that the socket needs urgent inspection.
 
@@ -212,19 +220,19 @@ According to the Linux manual page for C<select()>, these exceptions
 only happen when out-of-band (OOB) data arrives over udp or tcp.
 =cut
 
-sub mux_except_flagged($)  { panic "exception arrived on ". shift->name }
+#sub muxExceptFlagged($)  { panic "exception arrived on ". shift->name }
 
 =subsection Writing
 
-=method mux_write_flagged FILENO
+=method muxWriteFlagged $fileno
 Called when the write flag is set for this handler; this indicates
 that the output buffer is empty hence more data can be sent.
 
 When you extend this module, you probably want to override
-C<mux_outputbuffer_empty()>, not this "raw" method.
+C<muxOutputbufferEmpty()>, not this "raw" method.
 =cut
 
-sub mux_write_flagged($) { shift }  # simply ignore write offers
+#sub muxWriteFlagged($) { shift }  # simply ignore write offers
 
 =subsection Service
 =cut
@@ -232,7 +240,7 @@ sub mux_write_flagged($) { shift }  # simply ignore write offers
 #-------------------------
 =section Helpers
 
-=method show
+=method show 
 Returns a textblock with some info about the filehandle, for
 debugging purposes.
 =example
@@ -266,14 +274,14 @@ sub show()
     join ", ", @show, "name=$name";
 }
 
-=method fdset STATE, READ, WRITE, ERROR
-Change the flags for the READ, WRITE and/or ERROR acceptance by the
-mux to STATE.
+=method fdset $state, $read, $write, $error
+Change the flags for the $read, $write and/or $error acceptance by the
+mux to $state.
 =cut
 
 sub fdset($$$$)
 {   my $self = shift;
-    $self->{IMH_mux}->fdset($self->{IMH_fileno}, @_);
+    $self->{IH_mux}->fdset($self->{IH_fileno}, @_);
 }
 
 =ci_method extractSocket HASH
@@ -294,13 +302,13 @@ M<IO::Socket::INET> object.
 
 sub extractSocket($)
 {   my ($thing, $args) = @_;
-    my $class  = ref $thing || $thing;
+    my $class    = ref $thing || $thing;
 
-    my $socket = delete $args->{socket};
+    my $socket   = delete $args->{socket};
     return $socket if $socket;
 
-    my @sockopts;
-    push @sockopts, $_ => delete $args->{$_}
+    my @sockopts = (Blocking => 0);
+    push @sockopts, $_ => $args->{$_}
         for grep /^[A-Z]/, keys %$args;
 
     @sockopts
@@ -311,7 +319,7 @@ sub extractSocket($)
 
     # the extension will load these classes
     my $make = $ssl ? 'IO::Socket::SSL' : 'IO::Socket::INET';
-    $socket  = $make->new(Blocking => 0, @sockopts)
+    $socket  = $make->new(@sockopts)
         or fault __x"cannot create {pkg} socket", pkg => $class;
 
     $socket;

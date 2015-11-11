@@ -35,7 +35,7 @@ Open a file to be written.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =requires file FILENAME|HANDLE
 The file to be managed, either provided as FILENAME or as HANDLE. When
@@ -103,7 +103,7 @@ sub init($)
     $self;
 }
 
-=c_method open MODE, FILE, OPTIONS
+=c_method open $mode, $file, %options
 =cut
 
 sub open($$@)
@@ -115,7 +115,7 @@ sub open($$@)
 #-------------------
 =section Accessors
 
-=method mode
+=method mode 
 The bits of the open mode.
 =cut
 

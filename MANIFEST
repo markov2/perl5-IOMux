@@ -1,8 +1,7 @@
 ChangeLog
 MANIFEST
 Makefile.PL
-examples/daemon.pl
-examples/test.pl
+examples/echo-daemon.pl
 lib/IOMux.pm
 lib/IOMux/Alternatives.pod
 lib/IOMux/Bundle.pm

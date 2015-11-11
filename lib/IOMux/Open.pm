@@ -72,7 +72,7 @@ object gets added to the mux as well.
 
 =section Constructors
 
-=c_method new MODE, PARAMS
+=c_method new $mode, $params
 Available MODES are 
 
     -|  IOMux::Pipe::Read

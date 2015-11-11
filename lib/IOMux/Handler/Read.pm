@@ -22,7 +22,7 @@ This base-class defines the interface which every reader offers.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =option  read_size INTEGER
 =default read_size 32768
@@ -38,7 +38,7 @@ sub init($)
 
 #-------------------
 =section Accessors
-=method readSize [INTEGER]
+=method readSize [$integer]
 The number of bytes requested at each read.
 =cut
 
@@ -52,9 +52,9 @@ sub readSize(;$)
 
 =subsection Reading
 
-=method readline CALLBACK
+=method readline $callback
 Read a single line (bytes upto a LF or CRLF). After the whole line
-has arrived, the CALLBACK will be invoked with the received line as
+has arrived, the $callback will be invoked with the received line as
 parameter. that line is terminated by a LF (\n), even when the file
 contains CRLF or CR endings.
 
@@ -88,7 +88,7 @@ sub readline($)
       };
 }
 
-=method slurp CALLBACK
+=method slurp $callback
 Read all remaining data from a resource. After everything has been
 read, it will be returned as SCALAR (string reference)
 
@@ -124,13 +124,13 @@ sub slurp($)
 =subsection Reading
 =cut
 
-sub mux_init($)
+sub muxInit($)
 {   my ($self, $mux) = @_;
-    $self->SUPER::mux_init($mux);
+    $self->SUPER::muxInit($mux);
     $self->fdset(1, 1, 0, 0);
 }
 
-sub mux_read_flagged($)
+sub muxReadFlagged($)
 {   my $self = shift;
 
     my $bytes_read
@@ -138,11 +138,11 @@ sub mux_read_flagged($)
          , length($self->{IMHR_inbuf});
 
     if($bytes_read) # > 0
-    {   $self->mux_input(\$self->{IMHR_inbuf});
+    {   $self->muxInput(\$self->{IMHR_inbuf});
     }
     elsif(defined $bytes_read)   # == 0
     {   $self->fdset(0, 1, 0, 0);
-        $self->mux_eof(\$self->{IMHR_inbuf});
+        $self->muxEOF(\$self->{IMHR_inbuf});
     }
     elsif($!==EINTR || $!==EAGAIN || $!==EWOULDBLOCK)
     {   # a bit unexpected, but ok
@@ -154,14 +154,14 @@ sub mux_read_flagged($)
     }
 }
 
-=method mux_input BUFFER
+=method muxInput $buffer
 Called when new input has arrived on the input. It is passed a
-B<reference> to the input BUFFER. It must remove any input that
-it you have consumed from the BUFFER, and leave any partially
+B<reference> to the input $buffer. It must remove any input that
+it you have consumed from the $buffer, and leave any partially
 received data in there.
 
 =example
-  sub mux_input
+  sub muxInput
   {   my ($self, $inbuf) = @_;
 
       # Process each whole line in the input, leaving partial
@@ -172,19 +172,19 @@ received data in there.
   }
 =cut
 
-sub mux_input($)
+sub muxInput($)
 {   my ($self, $inbuf) = @_;
     return $self->{IMHR_read_more}->($inbuf, 0)
         if $self->{IMHR_read_more};
 }
 
-=method mux_eof INPUT
+=method muxEOF $input
 This is called when an end-of-file condition is present on the handle.
-Like M<mux_input()>, it is also passed a reference to the input
+Like M<muxInput()>, it is also passed a reference to the input
 buffer. You should consume the entire buffer or else it will just be lost.
 =cut
 
-sub mux_eof($)
+sub muxEOF($)
 {   my ($self, $inbuf) = @_;
     $self->{IMHR_eof}   = 1;
     $self->{IMHR_read_more}->($inbuf, 1)

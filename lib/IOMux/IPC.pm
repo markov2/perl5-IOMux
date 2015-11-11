@@ -9,8 +9,8 @@ use Log::Report    'iomux';
 use IOMux::Pipe::Read  ();
 use IOMux::Pipe::Write ();
 
-use POSIX          qw/:errno_h :sys_wait_h/;
-use File::Basename 'basename';
+use POSIX              qw/:errno_h :sys_wait_h/;
+use File::Basename     'basename';
 
 =chapter NAME
 IOMux::IPC - exchange data with external command
@@ -39,7 +39,7 @@ two or three pipes to facilitate the communication.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =requires command COMMAND|ARRAY
 The external command to be executed. Either the COMMAND needs to
@@ -119,9 +119,9 @@ sub init($)
     $self;
 }
 
-=c_method open MODE, (CMD, CMDOPTS)|(CMDARRAY, OPTIONS)
-Open the pipe to read. MODE is either C<< |-| >> or C<< |=| >>.  When you
-need to pass additional OPTIONS to the implied M<new()>, then you must
+=c_method open $mode, <$cmd, $cmdopts>|<$cmdarray, %options>
+Open the pipe to read. $mode is either C<< |-| >> or C<< |=| >>.  When you
+need to pass additional %options to the implied M<new()>, then you must
 use an ARRAY for command name and its optional parameters.
 =examples
   my $mux = IOMux::Poll->new;
@@ -142,9 +142,10 @@ sub open($$@)
 #-------------------
 =section Accessors
 
-=method mode
+=method mode 
 The bits of the open mode.
-=method childPid
+
+=method childPid 
 The process id of the child on the other side of the pipe.
 =cut
 

@@ -3,7 +3,7 @@ use ExtUtils::MakeMaker;
 
 use 5.008;
 
-my $version = '0.13';
+my $version = '1.00';
 
 WriteMakefile
  ( NAME	 	=> 'IOMux'

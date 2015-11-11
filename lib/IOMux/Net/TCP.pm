@@ -20,11 +20,11 @@ Handle a service or locally initiated TCP connection.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 Build a connection as client or server. You may either pass an prepared
-C<socket> object or parameters to initiate one. All OPTIONS which start
+C<socket> object or parameters to initiate one. All %options which start
 with capitals are passed to the socket creation. See M<extractSocket()>
-for those additional OPTIONS.
+for those additional %options.
 
 =default name  'tcp $host:$port'
 
@@ -33,35 +33,27 @@ Provide a socket, either as object or the parameters to instantiate it.
 
 =example
   # long form, most flexible
-  my $socket = IO::Socket::INET->new
-    ( PeerAddr => 'www.example.com:80'
-    , Reuse    => 1
-    );
-  my $client = IOMux::Net::TCP->new
-    ( socket   => $socket
-    );
+  my $socket = IO::Socket::INET->new(PeerAddr => 'www.example.com:80');
+  my $client = IOMux::Net::TCP->new(socket => $socket);
   $mux->add($client);
 
   # short form
-  my $client = IOMux::Net::TCP->new
-    ( PeerAddr => 'www.example.com:80'
-    , Reuse    => 1
-    );
+  my $client = IOMux::Net::TCP->new(PeerAddr => 'www.example.com:80');
   $mux->add($client);
 
   # even shorter
-  my $client = $mux->open('tcp'
-    , PeerAddr => 'www.example.com:80'
-    , Reuse    => 1
-    );
+  my $client = $mux->open('tcp', PeerAddr => 'www.example.com:80');
 =cut
 
 sub init($)
 {   my ($self, $args) = @_;
+
+    $args->{Proto} ||= 'tcp';
     my $socket = $args->{fh}
       = (delete $args->{socket}) || $self->extractSocket($args);
 
-    $args->{name} ||= "tcp ".$socket->peerhost.':'.$socket->peerport;
+    $args->{name}  ||= "tcp ".$socket->peerhost.':'.$socket->peerport;
+warn "SOCKET=$socket $args->{name}";
 
     $self->IOMux::Handler::Read::init($args);
     $self->IOMux::Handler::Write::init($args);
@@ -71,7 +63,7 @@ sub init($)
 
 #-------------------
 =section Accessors
-=method socket
+=method socket 
 =cut
 
 sub socket() {shift->fh}
@@ -81,7 +73,7 @@ sub socket() {shift->fh}
 
 =subsection Connection
 
-=method shutdown (0|1|2)
+=method shutdown <0|1|2>
 Shut down a socket for reading or writing or both. See the C<shutdown>
 Perl documentation for further details.
 
@@ -101,7 +93,7 @@ sub shutdown($)
     {   # Shutdown for reading.  We can do this now.
         $socket->shutdown(0);
         $self->{IMNT_shutread} = 1;
-        # The mux_eof hook must be run from the main loop to consume
+        # The muxEOF hook must be run from the main loop to consume
         # the rest of the inbuffer if there is anything left.
         # It will also remove $fh from _readers.
         $self->fdset(0, 1, 0, 0);
@@ -109,7 +101,7 @@ sub shutdown($)
     if($which!=0)
     {   # Shutdown for writing.  Only do this now if there is no pending data.
         $self->{IMNT_shutwrite} = 1;
-        unless($self->mux_output_waiting)
+        unless($self->muxOutputWaiting)
         {   $socket->shutdown(1);
             $self->fdset(0, 0, 1, 0);
         }
@@ -117,7 +109,7 @@ sub shutdown($)
 
     $self->close
         if $self->{IMNT_shutread}
-        && $self->{IMNT_shutwrite} && !$self->mux_output_waiting;
+        && $self->{IMNT_shutwrite} && !$self->muxOutputWaiting;
 }
 
 sub close()
@@ -137,29 +129,26 @@ sub close()
 =section Multiplexer
 =cut
 
-sub mux_init($)
+sub muxInit($)
 {   my ($self, $mux) = @_;
-    $self->SUPER::mux_init($mux);
-    $self->fdset(1, 1, 1, 0);
+    $self->SUPER::muxInit($mux);
+
+    # we will not listen for write until we have something to write
+    $self->fdset(1, 1, 0, 1);
 }
 
-sub mux_remove()
+sub muxOutbufferEmpty()
 {   my $self = shift;
-    $self->SUPER::mux_remove;
-}
+    $self->SUPER::muxOutbufferEmpty;
 
-sub mux_outbuffer_empty()
-{   my $self = shift;
-    $self->SUPER::mux_outbuffer_empty;
-
-    if($self->{IMNT_shutwrite} && !$self->mux_output_waiting)
+    if($self->{IMNT_shutwrite} && !$self->muxOutputWaiting)
     {   $self->socket->shutdown(1);
         $self->fdset(0, 0, 1, 0);
         $self->close if $self->{IMNT_shutread};
     }
 }
 
-=method mux_eof
+=method muxEOF 
 For sockets, this does not nessecarily mean that the descriptor has been
 closed, as the other end of a socket could have used M<shutdown()> to
 close just half of the socket, leaving us free to write data back down
@@ -169,9 +158,9 @@ the still open half.
 In this example, we send a final reply to the other end of the socket,
 and then shut it down for writing.  Since it is also shut down for reading
 (implicly by the EOF condition), it will be closed once the output has
-been sent, after which the mux_close callback will be called.
+been sent, after which the M<close()> callback will be called.
 
-  sub mux_eof
+  sub muxEOF
   {   my ($self, $ref_input) = @_;
       print $fh "Well, goodbye then!\n";
       $self->shutdown(1);

@@ -47,7 +47,7 @@ sub init($)
 
 #-------------
 =section Accessors
-=method poller
+=method poller 
 The internal M<IO::Poll> object.
 =cut
 
@@ -59,7 +59,7 @@ sub fdset($$$$$)
 {   my ($self, $fileno, $state, $r, $w, $e) = @_;
     my $conn = $self->handler($fileno) or return;
     my $fh   = $conn->fh;
-    my $mask = $poll->mask($fh);
+    my $mask = $poll->mask($fh) || 0;
     if($state==0)
     {   $mask &= ~POLLIN  if $r;
         $mask &= ~POLLOUT if $w;
@@ -83,16 +83,16 @@ sub one_go($$)
 
     if($numready < 0)
     {   return if $! == EINTR || $! == EAGAIN;
-        alert "Leaving loop with $!";
+        alert "leaving loop";
         return 0;
     }
 
     $numready
         or return 1;
  
-    $self->_ready(mux_read_flagged   => POLLIN|POLLHUP);
-    $self->_ready(mux_write_flagged  => POLLOUT);
-    $self->_ready(mux_except_flagged => POLLERR);
+    $self->_ready(muxReadFlagged   => POLLIN|POLLHUP);
+    $self->_ready(muxWriteFlagged  => POLLOUT);
+    $self->_ready(muxExceptFlagged => POLLERR);
 
     1;  # success
 }
@@ -111,7 +111,7 @@ sub _ready($$)
         {   # Handler administration error, but when write and error it may
             # be caused by read errors.
             alert "connection for ".$fh->fileno." not registered in $call"
-                if $call eq 'mux_read_flagged';
+                if $call eq 'muxReadFlagged';
         }
     }
 }

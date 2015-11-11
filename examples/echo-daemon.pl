@@ -2,6 +2,7 @@
 # This script can be used as template for daemons using IOMux.
 # The code is more verbose than needed in the common case.
 #
+# Purpose: the daemon returns the text it receives.
 # You may run the test with
 #   ls | netcat localhost 5422 || echo 'not running'
 
@@ -13,7 +14,7 @@ use Any::Daemon;
 
 #use IOMux::Select;
 use IOMux::Poll;
-use IOMux::Socket::TCP;
+use IOMux::Service::TCP;
 
 use Getopt::Long   qw/GetOptions :config no_ignore_case bundling/;
 use File::Basename qw/basename/;
@@ -34,7 +35,7 @@ my %os_opts  =
 
 my %run_opts =
   ( background => 1
-  , max_childs => 1    # there can only be one multiplexer
+  , max_childs => 1   # all done in 1 task
   );
 
 my %net_opts =
@@ -52,8 +53,6 @@ GetOptions
  , 'v+'             => \$mode  # -v -vv -vvv
     or exit 1;
 
-$run_opts{background} //= 1;
-
 unless(defined $net_opts{port})
 {   my $port = $net_opts{port} = $1
         if $net_opts{host} =~ s/\:([0-9]+)$//;
@@ -69,7 +68,12 @@ unless(defined $net_opts{port})
 dispatcher SYSLOG => 'syslog', accept => 'INFO-'
   , identity => 'iomux', facility => 'local0';
 
-dispatcher mode => $mode, 'ALL' if $mode;
+dispatcher mode => $mode, 'ALL'
+    if $mode;
+
+# close output to stderr/die/warn when in background
+dispatcher close => 'default'
+    if $run_opts{background};
 
 my $daemon = Any::Daemon->new(%os_opts);
 
@@ -97,11 +101,12 @@ sub run_multiplexer()
 
         # more options
       , name      => 'echo'           # improves error msgs
-      , conn_type => "IOMux::Echo"  # required, see below
+      , conn_type => 'IOMux::Echo'    # required, see below
       );
-   $mux->add($server);
 
+   $mux->add($server);
    $mux->loop(\&heartbeat);
+
    exit 0;
 }
 

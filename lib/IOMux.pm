@@ -58,12 +58,12 @@ M<AnyEvent>, M<IO::Async> and <POE>.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 There can only be one of these objects in your program. After
 instantiating this, you will M<add()> file-handles and sockets.  Finally,
 M<loop()> is called to go into C<select>-driven connection handling.
 
-There are currently no OPTIONS, but they will probably arrive in the
+There are currently no %options, but they will probably arrive in the
 upcoming releases.
 =cut
 
@@ -82,8 +82,8 @@ sub init($)
 #-------------
 =section User interface
 
-=method add HANDLER|BUNDLE
-Add an HANDLER or BUNDLE to the multiplexer. Handlers extend
+=method add $handler|$bundle
+Add an $handler or $bundle to the multiplexer. Handlers extend
 M<IOMux::Handler>. Bundles are related sets of handlers and
 extend M<IOMux::Bundle>.
 =cut
@@ -99,11 +99,11 @@ sub add($)
         or error __x"attempt to add non handler {pkg}"
           , pkg => (ref $handler || $handler);
 
-    $handler->mux_init($self);
+    $handler->muxInit($self);
     $handler;
 }
 
-=method open MODE, PARAMS
+=method open $mode, $params
 This C<open()> provides a simplified interface to M<IOMux::Open>, which on
 its turn is a simplification on using all kinds of handlers. See the manual
 of M<IOMux::Open> for an extended description of the use.
@@ -141,12 +141,12 @@ sub open(@)
     $conn;
 }
 
-=method loop [HEARTBEAT]
+=method loop [$heartbeat]
 Enter the main loop and start processing IO events. The loop will terminate
 when all handles are closed, serious errors emerge or M<endLoop()> was
 called.
 
-You may provide a HEARTBEAT code reference, which will get called each
+You may provide a $heartbeat code reference, which will get called each
 time the internal C<select()> has found a file handle with something
 to do or a timeout has expired. As arguments, it get the multiplexer
 object, the number of events and the time left to the next timeout.
@@ -171,10 +171,14 @@ sub loop(;$)
 {   my($self, $heartbeat) = @_;
     $self->{IM_endloop} = 0;
 
+    my $handlers = $self->{IM_handlers};
+    keys %$handlers
+        or error __x"there are no handlers for the mux loop";
+
   LOOP:
-    while(!$self->{IM_endloop} && keys %{$self->{IM_handlers}})
+    while(!$self->{IM_endloop} && keys %$handlers)
     {
-#       while(my($fileno, $conn) = each %{$self->{IM_handlers}})
+#       while(my($fileno, $conn) = each %$handlers)
 #       {   $conn->read
 #               if $conn->usesSSL && $conn->pending;
 #       }
@@ -194,7 +198,7 @@ sub loop(;$)
     }
 
     $_->close
-        for values %{$self->{IM_handlers}};
+        for values %$handlers;
 }
 
 =method endLoop BOOLEAN
@@ -217,7 +221,7 @@ The following methods are provided, but end-users should avoid calling
 these methods directly: call them via the specific extension of
 M<IOMux::Handler>.
 
-=method handlers
+=method handlers 
 Returns a list of all registered handlers (also the listening sockets).
 =example
   foreach my $handler ($mux->handlers)
@@ -228,8 +232,8 @@ Returns a list of all registered handlers (also the listening sockets).
 sub handlers()  {values %{shift->{IM_handlers}}}
 sub _handlers() {shift->{IM_handlers}}
 
-=method handler FILENO, [HANDLER]
-Returns (or sets) the handler which maintains FILENO.
+=method handler $fileno, [$handler]
+Returns (or sets) the handler which maintains $fileno.
 =example
   $mux->handler(1);   # probably STDOUT
 =cut
@@ -241,7 +245,7 @@ sub handler($;$)
     (defined $_[0]) ? ($hs->{$fileno} = shift) : (delete $hs->{$fileno});
 }
 
-=method remove FILENO
+=method remove $fileno
 Remove a connection from the multiplexer. Better to use the
 connection close method.
 
@@ -259,7 +263,7 @@ sub remove($)
         or return $self;
 
     $self->fdset($fileno, 0, 1, 1, 1);
-    $obj->mux_remove;
+    $obj->muxRemove;
 
     if(my $timeout = delete $self->{IM_timeouts}{$fileno})
     {   delete $self->{IM_next_timeout}
@@ -269,24 +273,25 @@ sub remove($)
     $self;
 }
 
-=method fdset FILENO, STATE, READ, WRITE, EXCEPT
-Change the select bit STATE for the FILENO. Change the READ, WRITE
-and/or EXCEPTion state. End-users should never need this.
+=method fdset $fileno, $state, $read, $write, $except
+Change the select bit $state for the $fileno. Change the $read, $write
+and/or $except-ion state. An end-users of this module should never need
+this.
 =example
   # clear read and except, keep write
   $mux->fdset($conn->fileno, 0, 1, 0, 1);
 
-  # better this way:
+  # preferred this way:
   $conn->fdset(0, 1, 0, 1);
 =cut
 
 sub fdset($$$$$) {panic}
 
-=method changeTimeout FILENO, OLDTIMEOUT, NEWTIMEOUT
+=method changeTimeout $fileno, $oldtimeout, $newtimeout
 One of the connections wants to change its timeouts. A value of
 zero or undef means I<not active>.
 
-The correct OLDTIMEOUT must be provided to make it fast to detect whether
+The correct $oldtimeout must be provided to make it fast to detect whether
 this was the first timeout to expire. Checking the first timeout takes
 C<O(n)> time, so we wish to avoid that.
 
@@ -294,7 +299,7 @@ C<O(n)> time, so we wish to avoid that.
   # set timeout
   $mux->changeTimeout($conn->fileno, undef, 10);
 
-  # better this way
+  # preferred this way
   $conn->timeout(10);
 =cut
 
@@ -331,7 +336,7 @@ sub _checkTimeouts($)
     my $hnd  = $self->{IM_handlers};
     while(my ($fileno, $when) = each %$timo)
     {   $when <= $now or next;
-        $hnd->{$fileno}->mux_timeout($self);
+        $hnd->{$fileno}->muxTimeout($self);
         delete $timo->{$fileno};
     }
 

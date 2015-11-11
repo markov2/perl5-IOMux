@@ -37,18 +37,18 @@ sub init($)
     $self->SUPER::init($args);
     $self->{IMS_readers} = '';
     $self->{IMS_writers} = '';
-    $self->{IMS_excepts}  = '';
+    $self->{IMS_excepts} = '';
     $self;
 }
 
 #-----------------
 =section User interface
 
-=method showFlags [FLAGS|(RDFLAGS,WRFLAGS,EXFLAGS)]
-Display the select FLAGS (one of the values received from M<selectFlags()>)
-or all of these flags. You may also specify three sets of FLAGS explicitly.
+=method showFlags [$flags|<$rdflags,$wrflags,$exflags>]
+Display the select $flags (one of the values received from M<selectFlags()>)
+or all of these flags. You may also specify three sets of $flags explicitly.
 
-When three sets of FLAGS are passed, it will result in three lines
+When three sets of $flags are passed, it will result in three lines
 preceeded with labels. With only one set, no label will be used.
 
 The flagged filenos are shown numerically (modulo 10) and positionally.
@@ -104,13 +104,15 @@ sub fdset($$$$$)
     vec($self->{IMS_readers}, $fileno, 1) = $state if $r;
     vec($self->{IMS_writers}, $fileno, 1) = $state if $w;
     vec($self->{IMS_excepts}, $fileno, 1) = $state if $e;
+use Carp 'cluck';
+cluck 'set write bit' if $w;
     # trace "fdset(@_), now: " .$self->showFlags($self->waitFlags);
 }
 
 sub one_go($$)
 {   my ($self, $wait, $heartbeat) = @_;
 
-#   trace "SELECT=".$self->showFlags($self->waitFlags);
+    trace "SELECT=\n".$self->showFlags($self->waitFlags);
 
     my ($rdready, $wrready, $exready)
        = @$self{ qw/IMS_readers IMS_writers IMS_excepts/ };
@@ -118,7 +120,7 @@ sub one_go($$)
     my ($numready, $timeleft)
        = select $rdready, $wrready, $exready, $wait;
 
-#   trace "READY=".$self->showFlags($rdready, $wrready, $exready);
+    trace "READY=\n".$self->showFlags($rdready, $wrready, $exready);
 
     if($heartbeat)
     {   # can be collected from within heartbeat
@@ -128,14 +130,16 @@ sub one_go($$)
 
     unless(defined $numready)
     {   return if $! == EINTR || $! == EAGAIN;
-        alert "Leaving loop with $!";
+        alert "leaving loop";
         return 0;
     }
 
     # Hopefully the regexp improves performance when many slow connections
-    $self->_ready(mux_read_flagged  => $rdready) if $rdready =~ m/[^\x00]/;
-    $self->_ready(mux_write_flagged => $wrready) if $wrready =~ m/[^\x00]/;
-    $self->_ready(mux_except_flagged => $exready) if $exready =~ m/[^\x00]/;
+    $self->_ready(muxReadFlagged   => $rdready) if $rdready =~ m/[^\x00]/;
+    $self->_ready(muxWriteFlagged  => $wrready) if $wrready =~ m/[^\x00]/;
+    $self->_ready(muxExceptFlagged => $exready) if $exready =~ m/[^\x00]/;
+
+sleep 1;
     1;  # success
 }
 
@@ -145,17 +149,21 @@ sub _ready($$)
     my $handlers = $self->_handlers;
     while(my ($fileno, $conn) = each %$handlers)
     {   $conn->$call($fileno) if (vec $flags, $fileno, 1)==1;
+warn "$conn $call($fileno)" if (vec $flags, $fileno, 1)==1;
     }
 }
 
-=method waitFlags
+=method waitFlags 
 Returns a list of three: respectively the read, write and error flags
 which show how the files are enlisted.
 =cut
 
-sub waitFlags() { @{$_[0]}{ qw/IMS_readers IMS_writers IMS_excepts/} }
+sub waitFlags()
+{   my $self = shift;
+    @{$self}{ qw/IMS_readers IMS_writers IMS_excepts/ };
+}
 
-=method selectFlags
+=method selectFlags 
 Returns a list of three: respectively the read, write and error flags
 which show the file numbers that the internal C<select()> call has
 flagged as needing inspection.
@@ -198,5 +206,4 @@ non-stdio version of C<open()>, with option C<O_NONBLOCK>. But even
 then, asynchronous support for reading and writing files and pipes
 may be lacking on your UNIX dialect.
 
-=back
 =cut

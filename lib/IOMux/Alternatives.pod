@@ -6,7 +6,7 @@ IOMux::Alternatives - compare the IOMux implementation with other Event modules
 
 On CPAN, you can find various alternatives for this module. Probably, this
 is caused by the very low level of programming help that the basic
-M<select()> and M<poll()> Operating System calls provide. Various corners
+C<select()> and C<poll()> operating system calls offer. Various corners
 of a program need to register event listeners and later get events back.
 This requires some administration.
 
@@ -14,8 +14,8 @@ This requires some administration.
 
 The M<IOMux> module started as a major rework of M<IO::Multiplex>. It
 follows the same concept, but with major internal and visible
-improvements. Most methods with a name which starts with C<mux_>
-originate from C<IO::Multiplex>.
+improvements. Most methods with a name like C<mux*>
+originate from C<IO::Multiplex> function C<mux_*>.
 
 The M<IOMux> implementation is conceptually much closer to
 M<IO::Multiplex> (I<Plex>) than you may expect. Similar enough to write
@@ -74,5 +74,3 @@ Certain applications will benefit from M<IOMux> (especially my
 personal development projects), because it is based on the M<OODoc>
 module for object oriented perl module documentation, and M<Log::Report>
 for error handling and translations.
-
-=cut

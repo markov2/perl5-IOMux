@@ -6,7 +6,7 @@ use base 'IOMux::Handler';
 
 use Log::Report 'iomux';
 use Fcntl;
-use POSIX 'errno_h';
+use POSIX            'errno_h';
 use File::Spec       ();;
 use File::Basename   'basename';
 
@@ -29,7 +29,7 @@ may skip the callbacks for small writes and prints.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =option  write_size INTEGER
 =default write_size 4096
@@ -46,7 +46,7 @@ sub init($)
 #-------------------
 =section Accessors
 
-=method writeSize [INTEGER]
+=method writeSize [$integer]
 The number of bytes written at each write.
 =cut
 
@@ -92,7 +92,7 @@ sub say(@)
       );
 }
 
-=method printf FORMAT, PARAMS
+=method printf $format, $params
 =examples
     $conn->printf("%s%d%X", $foo, $bar, $baz);
 
@@ -105,10 +105,10 @@ sub printf($@)
     $self->write(\sprintf(@_));
 }
 
-=method write SCALAR, [MORE]
+=method write SCALAR, [$more]
 Send the content of the string, passed as reference in SCALAR. You
 probably want to use M<print()> or M<printf()>.  You may provide
-a code reference to produce MORE info when the output buffer get
+a code reference to produce $more info when the output buffer get
 empty.
 =cut
 
@@ -116,31 +116,36 @@ sub write($;$)
 {   my ($self, $blob, $more) = @_;
 
     if(exists $self->{IMHW_outbuf})
-    {   ${$self->{IMHW_outbuf}} .= $$blob;
-        $self->{IMHW_more} = $more;
+    {   # There is already output waiting, glue this
+        ${$self->{IMHW_outbuf}} .= $$blob;
+        $self->{IMHW_more}       = $more;
         return;
     }
 
+
     my $bytes_written = syswrite $self->fh, $$blob, $self->{IMHW_write_size};
     if(!defined $bytes_written)
-    {   return if $!==EWOULDBLOCK || $!==EINTR;
-        warning __x"write to {name} failed: {err}"
-          , name => $self->name, err => $!;
-        $self->close;
-        return
+    {   unless($!==EWOULDBLOCK || $!==EINTR)
+        {   $self->close;
+            fault __x"write to {name} failed", name => $self->name;
+        }
+        # we cannot send the bytes yet
     }
-
-    if($bytes_written==length $$blob)
-    {   # we got rit of all at once.  Cheap!
+    elsif($bytes_written==length $$blob)
+    {   # we got rit of all at once.  Cheap!  No need to wait in mux
         $more->($self) if $more;
         $self->{IMHW_is_closing}->($self)
             if $self->{IMHW_is_closing};
         return;
     }
+    else
+    {   # some bytes sent
+        substr($$blob, 0, $bytes_written) = '';
+    }
 
-    substr($$blob, 0, $bytes_written) = '';
+    # start waiting for write-ready flag, to send more
     $self->{IMHW_outbuf} = $blob;
-    $self->{IMHW_more} = $more;
+    $self->{IMHW_more}   = $more;
     $self->fdset(1, 0, 1, 0);
 }
 
@@ -152,25 +157,27 @@ sub write($;$)
 
 =cut
 
-sub mux_init($)
+sub muxInit($)
 {   my ($self, $mux) = @_;
-    $self->SUPER::mux_init($mux);
-    $self->fdset(1, 0, 1, 0);
+    $self->SUPER::muxInit($mux);
+#   $self->fdset(1, 0, 1, 0);
+$self->fdset(0, 0, 1, 0);
 }
 
-sub mux_write_flagged()
+sub muxWriteFlagged()
 {   my $self   = shift;
     my $outbuf = $self->{IMHW_outbuf};
     unless($outbuf)
-    {   $outbuf = $self->{IMHW_outbuf} = $self->mux_outbuffer_empty;
+    {   # trigger follow-up event, which may produce more data to be sent
+        $self->muxOutbufferEmpty;
+        $outbuf = $self->{IMHW_outbuf};
         unless(defined $outbuf)
         {   # nothing can be produced on call, so we don't need the
             # empty-write signals on the moment (enabled at next write)
-            $self->fdset(0, 0, 1, 0);
             return;
         }
         unless(length $$outbuf)
-        {   # retry at next interval
+        {   # retry callback at next interval
             delete $self->{IMHW_outbuf};
             return;
         }
@@ -185,11 +192,15 @@ sub mux_write_flagged()
         $self->close;
     }
     elsif($bytes_written==length $$outbuf)
-         { delete $self->{IMHW_outbuf} }
-    else { substr($$outbuf, 0, $bytes_written) = '' }
+    {   delete $self->{IMHW_outbuf};
+        $self->muxOutbufferEmpty;
+    }
+    else
+    {   substr($$outbuf, 0, $bytes_written) = '';
+    }
 }
 
-=method mux_outbuffer_empty
+=method muxOutbufferEmpty 
 Called after all pending output has been written to the file descriptor.
 You may use this callback to produce more data to be written.
 
@@ -200,18 +211,18 @@ to the write flag until an explicit M<write()> gets executed.
   package My::Service;
   use base 'IOMux::Net::TCP';
 
-  sub mux_outbuffer_empty()
+  sub muxOutbufferEmpty()
   {   my $self = shift;
       if(my $data = $self->produce_more_data)
       {   $self->write(\$data);
       }
       else
-      {   $self->SUPER::mux_outbuffer_empty;
+      {   $self->SUPER::muxOutbufferEmpty;
       }
   }
 =cut
 
-sub mux_outbuffer_empty()
+sub muxOutbufferEmpty()
 {   my $self = shift;
     my $more = delete $self->{IMHW_more};
     return $more->() if defined $more;
@@ -221,11 +232,11 @@ sub mux_outbuffer_empty()
         if $self->{IMHW_is_closing};
 }
 
-=method mux_output_waiting
+=method muxOutputWaiting 
 Returns true is there is output queued.
 =cut
 
-sub mux_output_waiting() { exists shift->{IMHW_outbuf} }
+sub muxOutputWaiting() { exists shift->{IMHW_outbuf} }
 
 # Closing write handlers is a little complex: it should be delayed
 # until the write buffer is empty.

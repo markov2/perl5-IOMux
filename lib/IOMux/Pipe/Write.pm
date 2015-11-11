@@ -43,7 +43,7 @@ may skip the callbacks for small writes and prints.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =requires command COMMAND|ARRAY
 The external command to be executed. Either the COMMAND needs to
@@ -93,13 +93,13 @@ sub init($)
     $self;
 }
 
-=c_method bare OPTIONS
+=c_method bare %options
 Creates a pipe, but does not start a process (yet). Used by
 M<IOMux::IPC>, which needs three pipes for one process. Returned
 is not only a new pipe object, but also a read handle to be
 connected to the other side.
 
-All OPTIONS which are available to M<IOMux::Handler::Write::new()>
+All %options which are available to M<IOMux::Handler::Write::new()>
 can be used here as well.
 
 =option  read_size INTEGER
@@ -127,9 +127,9 @@ sub bare($%)
     ($self, $rh);
 }
 
-=c_method open MODE, (CMD, CMDOPTS)|(CMDARRAY, OPTIONS)
-Open the pipe to write. MODE is always C<< -| >>.  When you need to
-pass additional OPTIONS to the implied M<new()>, then you must use
+=c_method open $mode, <$cmd, $cmdopts>|<$cmdarray, %options>
+Open the pipe to write. $mode is always C<< -| >>.  When you need to
+pass additional %options to the implied M<new()>, then you must use
 an ARRAY for command name and its optional parameters.
 =examples
   my $mux = IOMux::Poll->new;
@@ -150,9 +150,9 @@ sub open($$@)
 #-------------------
 =section Accessors
 
-=method mode
+=method mode 
 The bits of the open mode.
-=method childPid
+=method childPid 
 The process id of the child on the other side of the pipe.
 =cut
 

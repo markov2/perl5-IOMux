@@ -14,6 +14,16 @@ IOMux::Service::TCP - TCP (socket) based service
 
 =chapter SYNOPSIS
 
+  my $service = IOMux::Service::TCP->new
+    ( # capitalized are passed to the socket constructor
+      Host   => 'localhost:8080'
+    , Listen => 3
+
+      # object to initialize when new connection arrives
+    , conn_type => $conn_handler_class  # extends IOMux::Net::TCP
+    , conn_opts => \@conn_handler_init_params
+    );
+
 =chapter DESCRIPTION
 Accept TCP connections. When a connection arrives, it will get
 handled by a new object which gets added to the multiplexer as
@@ -23,7 +33,7 @@ well.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =requires conn_type CLASS|CODE
 The CLASS (package name) of client to be created for each new contact.
@@ -32,7 +42,8 @@ CODE reference which will be called with the socket leading to the client.
 
 =option  conn_opts ARRAY
 =default conn_opts []
-Pass some extra options when objects of C<conn_type> are created.
+Pass some extra options when objects of C<conn_type> are created, passed
+as list of pairs.
 
 =default name 'listen tcp $host:$port'
 =cut
@@ -40,6 +51,7 @@ Pass some extra options when objects of C<conn_type> are created.
 sub init($)
 {   my ($self, $args) = @_;
 
+    $args->{Proto} ||= 'tcp';
     my $socket = $args->{fh}
       = (delete $args->{socket}) || $self->extractSocket($args);
 
@@ -61,8 +73,8 @@ sub init($)
 
 #------------------------
 =section Accessors
-=method clientType
-=method socket
+=method clientType 
+=method socket 
 =cut
 
 sub clientType() {shift->{IMST_conn_type}}
@@ -75,20 +87,26 @@ sub socket()     {shift->fh}
 # The read flag is set on the socket, which means that a new connection
 # attempt is made.
 
-sub mux_read_flagged()
+sub muxReadFlagged()
 {   my $self = shift;
 
-    if(my $client = $self->socket->accept)
-    {   my $ct = $self->{IMST_conn_type};
-        my $handler = ref $ct eq 'CODE'
-          ? $ct->(socket => $client, @{$self->{IMST_conn_opts}})
-          : $ct->new(socket => $client, @{$self->{IMST_conn_opts}});
-        $self->mux->add($handler);
-        $self->mux_connection($client);
+    my $client = $self->socket->accept;
+    unless($client)
+    {   alert __x"accept for {name} failed", name => $self->name;
+        return;
     }
-    else
-    {   alert "accept for {name} failed", name => $self->name;
-    }
+
+    # create an object which handles this connection
+    my $ct      = $self->{IMST_conn_type};
+    my $opts    = $self->{IMST_conn_opts};
+    my $handler = ref $ct eq 'CODE'
+      ? $ct->(   socket => $client, Proto => 'tcp', @$opts)
+      : $ct->new(socket => $client, Proto => 'tcp', @$opts);
+
+    # add the new socket to the mux, to be watched
+    $self->mux->add($handler);
+
+    $self->muxConnection($client);
 }
 
 1;

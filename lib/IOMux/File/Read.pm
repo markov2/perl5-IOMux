@@ -32,7 +32,7 @@ need a callback to handle the resulting data.
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new %options
 
 =requires file FILENAME|HANDLE
 
@@ -40,7 +40,7 @@ need a callback to handle the resulting data.
 
 =option   mode '<'
 =default  mode '<'
-For now, the mode is always simply
+For now, the mode is always simply 'read'
 
 =option   exclusive BOOLEAN
 =default  exclusive <false>
@@ -82,7 +82,7 @@ sub init($)
     $self;
 }
 
-=c_method open MODE, FILE, OPTIONS
+=c_method open $mode, $file, %options
 =cut
 
 sub open($$@)
@@ -93,7 +93,7 @@ sub open($$@)
 #-------------------
 =section Accessors
 
-=method mode
+=method mode 
 The bits of the open mode.
 =cut
 

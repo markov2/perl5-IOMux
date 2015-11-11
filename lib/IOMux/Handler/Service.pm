@@ -21,27 +21,28 @@ This base-class defines what interface services provide. A service is
 =section Multiplexer
 =cut
 
-sub mux_init($)
+sub muxInit($)
 {   my ($self, $mux) = @_;
-    $self->SUPER::mux_init($mux);
+    $self->SUPER::muxInit($mux);
     $self->fdset(1, 1, 0, 0);  # 'read' new connections
 }
 
-sub mux_remove()
+sub muxRemove()
 {   my $self = shift;
-    $self->SUPER::mux_remove;
+    $self->SUPER::muxRemove;
     $self->fdset(0, 1, 0, 0);
 }
 
+#----------
 =subsection Service
 
-=method mux_connection CLIENT
+=method muxConnection $client
 A new connection has arrived on the file-handle (socket) where we are
 listening on. The connection has been accepted and the filehandle
-of the new CLIENT has been added to the MUX. You may wish to send an
+of the new $client has been added to the MUX. You may wish to send an
 initial string.
 =cut
 
-sub mux_connection($) {shift}
+sub muxConnection($) {shift}
 
 1;
