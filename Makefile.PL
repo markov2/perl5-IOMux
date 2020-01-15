@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
 use ExtUtils::MakeMaker;
 
-use 5.008;
+use 5.010;
 
-my $version = '1.01';
+my $version = '1.02';
 
 WriteMakefile
  ( NAME	 	=> 'IOMux'

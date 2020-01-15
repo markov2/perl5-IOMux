@@ -1,6 +1,11 @@
 
 === version history for IOMux
 
+version 1.02:
+
+	Improvements:
+	- require perl 5.10
+
 version 1.01: Wed 15 Jan 13:30:23 CET 2020
 
 	Improvements:
