@@ -1,13 +1,17 @@
-use warnings;
-use strict;
+# This code is part of distribution IOMux.  Meta-POD processed with OODoc
+# into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package IOMux::Handler::Write;
 use base 'IOMux::Handler';
 
+use warnings;
+use strict;
+
 use Log::Report 'iomux';
 use Fcntl;
 use POSIX            'errno_h';
-use File::Spec       ();;
+use File::Spec       ();
 use File::Basename   'basename';
 
 use constant PIPE_BUF_SIZE => 4096;

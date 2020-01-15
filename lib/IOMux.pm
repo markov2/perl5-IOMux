@@ -1,8 +1,12 @@
-use warnings;
-use strict;
+# This code is part of distribution IOMux.  Meta-POD processed with OODoc
+# into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package IOMux;
 use Log::Report 'iomux';
+
+use warnings;
+use strict;
 
 use List::Util  'min';
 use POSIX       'errno_h';
@@ -14,13 +18,13 @@ use constant
   };
 
 =chapter NAME
-IOMux - simplify use of file-event loops
+IOMux - simplify use of file-event loops, base class
 
 =chapter SYNOPSIS
-  use IOMux;
+  use IOMux::Poll;  # or ::Select
   use IOMux::Service::TCP;
 
-  my $mux    = IOMux->new;
+  my $mux    = IOMux::Poll->new;  # or ::Slect
   my $server = IOMux::Service::TCP->new(...);
   $mux->add($server);
   $mux->loop;
@@ -67,7 +71,15 @@ There are currently no %options, but they will probably arrive in the
 upcoming releases.
 =cut
 
-sub new(@)  {my $class = shift; (bless {}, $class)->init( {@_} ) }
+sub new(@)
+{   my ($class, %args) = @_;
+
+    error __x"initiate an extension of {pkg}", pkg => __PACKAGE__
+        if $class eq __PACKAGE__;
+
+    (bless {}, $class)->init(\%args);
+}
+
 sub init($)
 {   my ($self, $args) = @_;
     $self->{IM_handlers} = {};
